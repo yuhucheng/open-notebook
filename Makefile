@@ -1,6 +1,7 @@
 .PHONY: run frontend check ruff database lint api start-all stop-all status clean-cache worker worker-start worker-stop worker-restart
 .PHONY: docker-buildx-prepare docker-buildx-clean docker-buildx-reset
 .PHONY: docker-push docker-push-latest docker-release tag export-docs
+.PHONY: debug-api debug-db debug-all debug-logs 
 
 # Get version from pyproject.toml
 VERSION := $(shell grep -m1 version pyproject.toml | cut -d'"' -f2)
@@ -187,6 +188,31 @@ export-docs:
 	@echo "📚 Exporting documentation..."
 	@uv run python scripts/export_docs.py
 	@echo "✅ Documentation export complete!"
+
+# === Debug Tools ===
+.PHONY: debug-api debug-db debug-all debug-logs
+
+debug-api:
+	@echo "🔍 运行 API 调试工具..."
+	@uv run python scripts/debug_api.py
+
+debug-db:
+	@echo "🔍 运行数据库调试工具..."
+	@uv run python scripts/debug_db.py
+
+debug-all: debug-api debug-db
+	@echo "✅ 所有调试检查完成!"
+
+debug-logs:
+	@echo "📊 显示服务日志..."
+	@echo "\n=== API 进程 ==="
+	@pgrep -fl "run_api.py" || echo "API 未运行"
+	@echo "\n=== Worker 进程 ==="
+	@pgrep -fl "surreal-commands-worker" || echo "Worker 未运行"
+	@echo "\n=== 前端进程 ==="
+	@pgrep -fl "next" || echo "前端未运行"
+	@echo "\n=== 端口监听 ==="
+	@lsof -i :3000 -i :5055 -i :8001 2>/dev/null | grep LISTEN || echo "未发现监听端口"
 
 # === Cleanup ===
 clean-cache:
