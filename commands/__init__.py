@@ -4,10 +4,12 @@ from .embedding_commands import embed_single_item_command, rebuild_embeddings_co
 from .example_commands import analyze_data_command, process_text_command
 from .podcast_commands import generate_podcast_command
 from .source_commands import process_source_command
+from .speech_commands import generate_speech_script_command
 
 __all__ = [
     "embed_single_item_command",
     "generate_podcast_command",
+    "generate_speech_script_command",
     "process_source_command",
     "process_text_command",
     "analyze_data_command",

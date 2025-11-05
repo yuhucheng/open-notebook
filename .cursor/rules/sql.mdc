@@ -1,0 +1,5 @@
+---
+globs: api/**/*.py
+alwaysApply: false
+---
+如果涉及到 sql 的变更或者创建，需要在 migrations/是添加语句

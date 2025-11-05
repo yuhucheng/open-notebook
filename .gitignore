@@ -1,3 +1,5 @@
+uv.lock
+pyproject.toml
 .env
 prompts/patterns/user/
 /notebooks/
@@ -134,4 +136,3 @@ specs/
 .claude
 
 .playwright-mcp/
-uv.lock

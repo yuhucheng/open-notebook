@@ -1,0 +1,73 @@
+import { apiClient } from './client'
+import { SpeechScriptResponse, OutlineSectionResponse } from '@/lib/types/speech-scripts'
+
+export interface GenerateSpeechScriptRequest {
+  name: string
+  description?: string
+  source_id: string
+  auxiliary_sources: string[]
+  auxiliary_notebooks: string[]
+}
+
+export interface SpeechScriptDetailResponse {
+  speech_script: SpeechScriptResponse
+  outline_sections: OutlineSectionResponse[]
+}
+
+export interface GenerateSpeechScriptResponse {
+  job_id: string
+  status: string
+  message: string
+}
+
+export const speechScriptsApi = {
+  list: async (): Promise<{ speech_scripts: SpeechScriptResponse[] }> => {
+    const response = await apiClient.get('/speech-scripts')
+    return response.data
+  },
+
+  get: async (speechScriptId: string): Promise<SpeechScriptDetailResponse> => {
+    const response = await apiClient.get(`/speech-scripts/${speechScriptId}`)
+    return response.data
+  },
+
+  generate: async (
+    request: GenerateSpeechScriptRequest
+  ): Promise<GenerateSpeechScriptResponse> => {
+    const response = await apiClient.post('/speech-scripts/generate', request)
+    return response.data
+  },
+
+  delete: async (speechScriptId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete(`/speech-scripts/${speechScriptId}`)
+    return response.data
+  },
+
+  getJobStatus: async (jobId: string): Promise<any> => {
+    const response = await apiClient.get(`/speech-scripts/jobs/${jobId}`)
+    return response.data
+  },
+
+  updateOutlineSectionOrder: async (
+    speechScriptId: string,
+    sectionId: string,
+    orderIndex: number
+  ): Promise<{ message: string }> => {
+    const response = await apiClient.put(
+      `/speech-scripts/${speechScriptId}/sections/${sectionId}/order`,
+      { order_index: orderIndex }
+    )
+    return response.data
+  },
+
+  getOutlineSectionImage: async (
+    speechScriptId: string,
+    sectionId: string
+  ): Promise<Blob> => {
+    const response = await apiClient.get(
+      `/speech-scripts/${speechScriptId}/images/${sectionId}`,
+      { responseType: 'blob' }
+    )
+    return response.data
+  },
+}

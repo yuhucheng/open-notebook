@@ -1,0 +1,5 @@
+-- Migration 10 回滚：删除演讲稿相关数据表
+-- 删除大纲讲稿表（outline_section）
+REMOVE TABLE outline_section;
+-- 删除演讲稿主表（speech_script）
+REMOVE TABLE speech_script;
