@@ -1,0 +1,8 @@
+# 终端2：启动API后端
+uv run run_api.py 
+
+# 终端3：启动worker
+uv run --env-file .env surreal-commands-worker --import-modules commands 
+
+# 终端4：启动前端
+cd frontend && npm run dev

@@ -134,3 +134,4 @@ specs/
 .claude
 
 .playwright-mcp/
+uv.lock
