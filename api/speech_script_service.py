@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 import os
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -90,7 +91,6 @@ class SpeechScriptService:
                 raise ValueError("Speech commands not available")
 
             # 直接保存command到数据库（绕过surreal_commands的submit_command问题）
-            from datetime import datetime
             job_id = f"command:{uuid.uuid4().hex[:20]}"
             command_data = {
                 "name": "generate_speech_script",  # Worker期望 'name' 字段，而不是 'command_name'
@@ -327,4 +327,92 @@ class SpeechScriptService:
             logger.error(f"Failed to update outline section order: {e}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to update order: {str(e)}"
+            )
+
+    @staticmethod
+    async def update_speech_script(
+        speech_script_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """更新演讲稿信息"""
+        try:
+            speech_script = await SpeechScript.get(speech_script_id)
+            if not speech_script:
+                raise HTTPException(status_code=404, detail="Speech script not found")
+
+            update_data = {}
+            if name is not None:
+                update_data["name"] = name
+            if description is not None:
+                update_data["description"] = description
+
+            if update_data:
+                # 更新对象属性
+                for key, value in update_data.items():
+                    setattr(speech_script, key, value)
+                # 保存更新
+                await speech_script.save()
+
+            # 返回更新后的数据
+            return {
+                "id": str(speech_script.id),
+                "name": speech_script.name,
+                "description": speech_script.description,
+                "updated": str(speech_script.updated) if speech_script.updated else None,
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to update speech script {speech_script_id}: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to update speech script: {str(e)}"
+            )
+
+    @staticmethod
+    async def update_outline_section(
+        section_id: str,
+        title: Optional[str] = None,
+        outline: Optional[str] = None,
+        script: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """更新大纲讲稿内容"""
+        try:
+            # 首先获取现有的section
+            section = await OutlineSection.get(section_id)
+            if not section:
+                raise HTTPException(status_code=404, detail="Outline section not found")
+
+            update_data = {}
+
+            if title is not None:
+                update_data["title"] = title
+            if outline is not None:
+                update_data["outline"] = outline
+            if script is not None:
+                update_data["script"] = script
+
+            if update_data:
+                # 更新对象属性
+                for key, value in update_data.items():
+                    setattr(section, key, value)
+                # 保存更新
+                await section.save()
+
+            # 返回更新后的数据
+            return {
+                "id": str(section.id),
+                "title": section.title,
+                "outline": section.outline,
+                "script": section.script,
+                "updated": str(section.updated) if section.updated else None,
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to update outline section {section_id}: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to update outline section: {str(e)}"
             )

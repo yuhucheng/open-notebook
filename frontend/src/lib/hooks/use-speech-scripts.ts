@@ -2,22 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { speechScriptsApi } from '@/lib/api/speech-scripts'
 import { QUERY_KEYS } from '@/lib/api/query-client'
-import { SpeechScriptResponse } from '@/lib/types/speech-scripts'
 
 export function useSpeechScripts() {
   const query = useQuery({
     queryKey: QUERY_KEYS.speechScripts,
     queryFn: speechScriptsApi.list,
-    refetchInterval: (data) => {
-      // If any speech scripts are processing, refetch every 5 seconds
-      const hasProcessing = data?.speech_scripts?.some(
-        (script: SpeechScriptResponse) => script.status === 'processing'
-      )
-      return hasProcessing ? 5000 : false
-    },
   })
 
-  const speechScripts = query.data?.speech_scripts ?? []
+  const speechScripts = Array.isArray(query.data) ? query.data : []
   const statusGroups = {
     processing: speechScripts.filter((script) => script.status === 'processing'),
     completed: speechScripts.filter((script) => script.status === 'completed'),
@@ -85,6 +77,51 @@ export function useUpdateOutlineSectionOrder() {
       orderIndex: number
     }) =>
       speechScriptsApi.updateOutlineSectionOrder(speechScriptId, sectionId, orderIndex),
+    onSuccess: (_, { speechScriptId }) => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.speechScript(speechScriptId),
+      })
+    },
+  })
+}
+
+export function useUpdateSpeechScript() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      speechScriptId,
+      updateData,
+    }: {
+      speechScriptId: string
+      updateData: { name?: string; description?: string }
+    }) =>
+      speechScriptsApi.update(speechScriptId, updateData),
+    onSuccess: (_, { speechScriptId }) => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.speechScript(speechScriptId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.speechScripts,
+      })
+    },
+  })
+}
+
+export function useUpdateOutlineSection() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      speechScriptId,
+      sectionId,
+      updateData,
+    }: {
+      speechScriptId: string
+      sectionId: string
+      updateData: { title?: string; outline?: string; script?: string }
+    }) =>
+      speechScriptsApi.updateOutlineSection(speechScriptId, sectionId, updateData),
     onSuccess: (_, { speechScriptId }) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.speechScript(speechScriptId),

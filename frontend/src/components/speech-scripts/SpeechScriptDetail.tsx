@@ -9,16 +9,21 @@ import {
   ArrowLeft,
   CheckCircle,
   Clock,
+  Edit3,
   FileText,
   Loader2,
   RefreshCcw,
+  Save,
+  X,
 } from 'lucide-react'
 
-import { useSpeechScript, useUpdateOutlineSectionOrder } from '@/lib/hooks/use-speech-scripts'
+import { useSpeechScript, useUpdateOutlineSectionOrder, useUpdateSpeechScript } from '@/lib/hooks/use-speech-scripts'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { OutlineSectionCard } from '@/components/speech-scripts/OutlineSectionCard'
 import { OutlineSectionReorderDialog } from '@/components/speech-scripts/OutlineSectionReorderDialog'
@@ -57,6 +62,9 @@ const statusConfig = {
 export function SpeechScriptDetail({ speechScriptId }: SpeechScriptDetailProps) {
   const router = useRouter()
   const [showReorderDialog, setShowReorderDialog] = useState(false)
+  const [isEditingSpeechScript, setIsEditingSpeechScript] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
 
   const {
     data: speechScriptData,
@@ -67,6 +75,7 @@ export function SpeechScriptDetail({ speechScriptId }: SpeechScriptDetailProps) 
   } = useSpeechScript(speechScriptId)
 
   const updateOrder = useUpdateOutlineSectionOrder()
+  const updateSpeechScript = useUpdateSpeechScript()
 
   const handleRefresh = () => {
     void refetch()
@@ -82,6 +91,45 @@ export function SpeechScriptDetail({ speechScriptId }: SpeechScriptDetailProps) 
       })
     })
     setShowReorderDialog(false)
+  }
+
+  const handleEditSpeechScript = () => {
+    if (!speechScriptData) return
+    const { speech_script: speechScript } = speechScriptData
+    setEditName(speechScript.name)
+    setEditDescription(speechScript.description || '')
+    setIsEditingSpeechScript(true)
+  }
+
+  const handleSaveSpeechScript = () => {
+    if (!speechScriptData) return
+
+    const updateData: { name?: string; description?: string } = {}
+    if (editName !== speechScriptData.speech_script.name) {
+      updateData.name = editName
+    }
+    if (editDescription !== (speechScriptData.speech_script.description || '')) {
+      updateData.description = editDescription
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      updateSpeechScript.mutate(
+        { speechScriptId, updateData },
+        {
+          onSuccess: () => {
+            setIsEditingSpeechScript(false)
+          },
+        }
+      )
+    } else {
+      setIsEditingSpeechScript(false)
+    }
+  }
+
+  const handleCancelEditSpeechScript = () => {
+    setIsEditingSpeechScript(false)
+    setEditName('')
+    setEditDescription('')
   }
 
   if (isLoading) {
@@ -154,17 +202,68 @@ export function SpeechScriptDetail({ speechScriptId }: SpeechScriptDetailProps) 
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 flex-1">
               <div className={`rounded-lg p-2 ${status.bgColor}`}>
                 <StatusIcon className={`h-5 w-5 ${status.color}`} />
               </div>
-              <div className="space-y-1">
-                <CardTitle className="text-xl">{speechScript.name}</CardTitle>
-                {speechScript.description && (
-                  <p className="text-muted-foreground">{speechScript.description}</p>
+              <div className="space-y-3 flex-1">
+                {isEditingSpeechScript ? (
+                  <div className="space-y-3">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="text-xl font-semibold"
+                      placeholder="演讲稿标题"
+                    />
+                    <Textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      placeholder="演讲稿描述（可选）"
+                      rows={2}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleSaveSpeechScript}
+                        disabled={updateSpeechScript.isPending}
+                      >
+                        {updateSpeechScript.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 h-4 w-4" />
+                        )}
+                        保存
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEditSpeechScript}
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <CardTitle className="text-xl">{speechScript.name}</CardTitle>
+                    {speechScript.description && (
+                      <p className="text-muted-foreground">{speechScript.description}</p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
+            {!isEditingSpeechScript && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditSpeechScript}
+              >
+                <Edit3 className="mr-2 h-4 w-4" />
+                编辑
+              </Button>
+            )}
           </div>
         </CardHeader>
 

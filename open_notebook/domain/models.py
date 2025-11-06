@@ -89,6 +89,7 @@ class ModelManager:
 
         # Create model based on type (Esperanto will cache the instance)
         if model.type == "language":
+            logger.info(f"Creating language model with provider={model.provider}, model_name={model.name}, kwargs={kwargs}")
             return AIFactory.create_language(
                 model_name=model.name,
                 provider=model.provider,

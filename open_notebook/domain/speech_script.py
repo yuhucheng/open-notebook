@@ -63,14 +63,28 @@ class SpeechScript(ObjectModel):
     @classmethod
     async def get_all_with_sections(cls, order_by: str = "created desc") -> List[Dict[str, Any]]:
         """获取所有演讲稿及其大纲讲稿"""
-        query = f"""
-        SELECT *,
-               <-outline_section AS outline_sections
-        FROM speech_script
-        ORDER BY {order_by}
-        """
-        result = await repo_query(query)
-        return result if result else []
+        # 先获取所有演讲稿
+        scripts_query = f"SELECT * FROM speech_script ORDER BY {order_by}"
+        scripts = await repo_query(scripts_query)
+
+        if not scripts:
+            return []
+
+        # 为每个演讲稿获取对应的outline_sections
+        scripts_with_sections = []
+        for script in scripts:
+            script_id = script["id"]
+            # 查询对应的outline_sections
+            sections = await repo_query(
+                "SELECT * FROM outline_section WHERE speech_script_id = $speech_script_id ORDER BY order_index",
+                {"speech_script_id": script_id}
+            )
+
+            # 将sections添加到script中
+            script["outline_sections"] = sections if sections else []
+            scripts_with_sections.append(script)
+
+        return scripts_with_sections
 
 
 class OutlineSection(ObjectModel):

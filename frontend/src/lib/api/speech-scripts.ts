@@ -21,7 +21,7 @@ export interface GenerateSpeechScriptResponse {
 }
 
 export const speechScriptsApi = {
-  list: async (): Promise<{ speech_scripts: SpeechScriptResponse[] }> => {
+  list: async (): Promise<SpeechScriptResponse[]> => {
     const response = await apiClient.get('/speech-scripts')
     return response.data
   },
@@ -43,7 +43,15 @@ export const speechScriptsApi = {
     return response.data
   },
 
-  getJobStatus: async (jobId: string): Promise<any> => {
+  getJobStatus: async (jobId: string): Promise<{
+    job_id: string
+    status: string
+    result?: unknown
+    error_message?: string
+    created?: string
+    updated?: string
+    progress?: number
+  }> => {
     const response = await apiClient.get(`/speech-scripts/jobs/${jobId}`)
     return response.data
   },
@@ -68,6 +76,23 @@ export const speechScriptsApi = {
       `/speech-scripts/${speechScriptId}/images/${sectionId}`,
       { responseType: 'blob' }
     )
+    return response.data
+  },
+
+  update: async (
+    speechScriptId: string,
+    updateData: { name?: string; description?: string }
+  ): Promise<{ message: string; id: string; name: string; description?: string; updated?: string }> => {
+    const response = await apiClient.put(`/speech-scripts/${speechScriptId}`, updateData)
+    return response.data
+  },
+
+  updateOutlineSection: async (
+    speechScriptId: string,
+    sectionId: string,
+    updateData: { title?: string; outline?: string; script?: string }
+  ): Promise<{ message: string; id: string; title: string; outline: string; script: string; updated?: string }> => {
+    const response = await apiClient.put(`/speech-scripts/${speechScriptId}/sections/${sectionId}`, updateData)
     return response.data
   },
 }

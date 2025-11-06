@@ -16,9 +16,6 @@ from open_notebook.domain.speech_script import SpeechScript, OutlineSection
 from api.transformations_service import transformations_service
 from api.models_service import models_service
 
-# TODO: 需要实现AI生成大纲和讲稿的功能
-# 这里暂时使用模拟实现，实际需要集成AI模型
-
 
 def encode_image_to_base64(image_path: Path) -> str:
     """
@@ -101,12 +98,37 @@ async def extract_ppt_pages(source_id: str, output_dir: Path) -> List[Path]:
         raise
 
 
-async def generate_outlines_from_pages(image_paths: List[Path], auxiliary_content: str = "") -> List[Dict[str, Any]]:
+async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], auxiliary_content: str = "") -> List[Dict[str, Any]]:
     """
     为所有页面一次性生成大纲和讲稿，确保演讲的连续性
     使用AI模型生成实际内容
     """
     try:
+        # 获取source文件路径
+        source_result = await repo_query(
+            "SELECT * FROM source WHERE id = $source_id",
+            {"source_id": ensure_record_id(source_id)}
+        )
+        if not source_result:
+            raise ValueError(f"Source {source_id} not found")
+
+        source_data = source_result[0]
+        asset = source_data.get("asset", {})
+        file_path = asset.get("file_path")
+
+        if not file_path:
+            raise ValueError(f"No file path found for source {source_id}")
+
+        # 解析文件路径
+        if file_path.startswith("file://"):
+            from urllib.parse import unquote, urlparse
+            parsed = urlparse(file_path)
+            file_path = unquote(parsed.path)
+
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise ValueError(f"File not found: {file_path}")
+
         # 获取默认的transformation模型
         models = models_service.get_all_models(model_type="language")
         if not models:
@@ -114,66 +136,41 @@ async def generate_outlines_from_pages(image_paths: List[Path], auxiliary_conten
 
         model_id = models[0].id  # 使用第一个可用的语言模型
 
-        # 构建图片描述
-        page_descriptions = []
-        for i, image_path in enumerate(image_paths, 1):
-            try:
-                base64_image = encode_image_to_base64(image_path)
-                page_descriptions.append({
-                    "page_number": i,
-                    "image_base64": base64_image,
-                    "filename": image_path.name
-                })
-            except Exception as e:
-                logger.warning(f"Failed to encode image {image_path}: {e}")
-                # 如果编码失败，使用文件名作为占位符
-                page_descriptions.append({
-                    "page_number": i,
-                    "image_base64": None,
-                    "filename": image_path.name
-                })
+        # 提取每页的文本内容
+        doc = fitz.open(str(file_path))
+        page_texts = []
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
+            text = page.get_text()
+            page_texts.append({
+                "page_number": page_num + 1,
+                "text": text.strip() if text.strip() else f"第{page_num + 1}页 (无文本内容)",
+                "filename": image_paths[page_num].name if page_num < len(image_paths) else f"slide_{page_num + 1}.png"
+            })
+        doc.close()
 
         # 构建提示词
-        prompt = f"""
-你是一个专业的演讲稿撰写助手。请基于提供的PPT页面内容，为整个演讲生成连贯的大纲和讲稿。
+        prompt = (
+            "你是一个专业的演讲稿撰写助手。请基于提供的PPT页面内容，为整个演讲生成连贯的大纲和讲稿。"
+            "要求：1. 分析所有页面的内容，理解演讲的整体结构和逻辑流程 "
+            "2. 为每一页生成：- 标题：简洁明了，反映页面核心内容 - 大纲：详细描述页面内容要点 "
+            "- 讲稿：自然的演讲语言，确保前后页面的连贯性 "
+            "3. 演讲稿要符合演讲的逻辑顺序，前后呼应 "
+            "4. 语言要生动、自然，适合口头表达 "
+            f"5. 必须为所有输入的页面生成对应的内容，输出页数必须与输入页数完全一致，不能少于或多于输入的页面数量 "
+            f"6. 如果提供了辅助内容，请适当融入讲稿中 {f'辅助内容：{auxiliary_content}' if auxiliary_content else ''} "
+            "请以JSON格式返回结果，必须返回完整的JSON结构，不能被截断，而且你需要检查最终返回的数据是否满足JSON格式，"
+            "不能生成非JSON字符串的内容（如```json```），格式如下："
+            "{'pages': [{'page_number': 1, 'title': '页面标题', 'outline': '页面大纲内容', 'script': '演讲稿内容'}, ...]}"
+        )
 
-要求：
-1. 分析所有页面的内容，理解演讲的整体结构和逻辑流程
-2. 为每一页生成：
-   - 标题：简洁明了，反映页面核心内容
-   - 大纲：详细描述页面内容要点
-   - 讲稿：自然的演讲语言，确保前后页面的连贯性
-3. 演讲稿要符合演讲的逻辑顺序，前后呼应
-4. 语言要生动、自然，适合口头表达
-5. 如果提供了辅助内容，请适当融入讲稿中
+        # 构建文本输入，包含每页的文本内容
+        text_input = f"演讲稿生成任务：{prompt} 共有 {len(page_texts)} 页PPT内容需要分析："
 
-{"辅助内容：" + auxiliary_content if auxiliary_content else ""}
-
-请以JSON格式返回结果，格式如下：
-{{
-    "pages": [
-        {{
-            "page_number": 1,
-            "title": "页面标题",
-            "outline": "页面大纲内容",
-            "script": "演讲稿内容"
-        }},
-        ...
-    ]
-}}
-"""
-
-        # 由于当前系统不支持vision模型，我们暂时使用文本描述
-        # 构建文本输入
-        text_input = f"演讲稿生成任务：\n\n{prompt}\n\n"
-        text_input += f"共有 {len(page_descriptions)} 页PPT内容需要分析：\n"
-
-        for desc in page_descriptions:
-            text_input += f"\n第{desc['page_number']}页 ({desc['filename']})"
-            if desc['image_base64']:
-                text_input += f" - 图片已编码为base64 (长度: {len(desc['image_base64'])} 字符)"
-            else:
-                text_input += f" - 图片编码失败"
+        # 将页面文本信息格式化为JSON字符串
+        import json
+        page_texts_json = json.dumps(page_texts, ensure_ascii=False)
+        text_input += f"\n页面内容（JSON格式）：{page_texts_json}"
 
         # 创建临时的transformation来处理这个任务
         transformation = transformations_service.create_transformation(
@@ -184,37 +181,57 @@ async def generate_outlines_from_pages(image_paths: List[Path], auxiliary_conten
             apply_default=False
         )
 
-        # 执行transformation
-        result = transformations_service.execute_transformation(
-            transformation_id=transformation.id,
-            input_text=text_input,
-            model_id=model_id
-        )
+        # 执行transformation，最多重试3次
+        pages_data = []
+        max_retries = 3
 
-        # 解析结果
-        if isinstance(result, list) and result:
-            result_text = result[0].get("output", "")
-        elif isinstance(result, dict):
-            result_text = result.get("output", "")
-        else:
-            result_text = str(result)
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempt {attempt + 1}/{max_retries} to generate speech script content")
 
-        # 尝试解析JSON结果
-        try:
-            import json
-            parsed_result = json.loads(result_text)
-            pages_data = parsed_result.get("pages", [])
-        except Exception as e:
-            logger.warning(f"Failed to parse JSON result: {e}")
-            # 如果解析失败，生成默认内容
-            pages_data = []
-            for i, image_path in enumerate(image_paths, 1):
-                pages_data.append({
-                    "page_number": i,
-                    "title": f"第{i}页 - {image_path.name}",
-                    "outline": f"第{i}页主要内容概述 - 基于PPT页面内容分析",
-                    "script": f"这是第{i}页的演讲稿内容。根据PPT内容，我们可以看到一些重要的信息。"
-                })
+                # 执行transformation
+                result = transformations_service.execute_transformation(
+                    transformation_id=transformation.id,
+                    input_text=text_input,
+                    model_id=model_id
+                )
+
+                # 解析结果
+                if isinstance(result, list) and result:
+                    result_text = result[0].get("output", "")
+                elif isinstance(result, dict):
+                    result_text = result.get("output", "")
+                else:
+                    result_text = str(result)
+
+                # 尝试解析JSON结果
+                import json
+                logger.info(f"Result text: {result_text}")
+                parsed_result = json.loads(result_text)
+                pages_data = parsed_result.get("pages", [])
+
+                # 如果成功解析且有数据，跳出重试循环
+                if pages_data:
+                    logger.info(f"Successfully parsed JSON result with {len(pages_data)} pages on attempt {attempt + 1}")
+                    break
+                else:
+                    logger.warning(f"Parsed JSON result but no pages data found on attempt {attempt + 1}")
+                    if attempt == max_retries - 1:
+                        raise ValueError("No pages data in JSON result")
+
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt == max_retries - 1:
+                    # 所有重试都失败，生成默认内容
+                    logger.error(f"All {max_retries} attempts failed, using default content")
+                    pages_data = []
+                    for i, image_path in enumerate(image_paths, 1):
+                        pages_data.append({
+                            "page_number": i,
+                            "title": f"第{i}页 - {image_path.name}",
+                            "outline": f"第{i}页主要内容概述生成失败",
+                            "script": f"这是第{i}页的演讲稿内容生成失败"
+                        })
 
         # 确保返回的数据格式正确
         outlines_data = []
@@ -234,8 +251,8 @@ async def generate_outlines_from_pages(image_paths: List[Path], auxiliary_conten
         return [
             {
                 "title": f"第{i+1}页",
-                "outline": f"第{i+1}页内容概述",
-                "script": f"第{i+1}页的演讲稿内容",
+                "outline": f"第{i+1}页内容概述生成失败",
+                "script": f"第{i+1}页的演讲稿生成失败",
             }
             for i in range(len(image_paths))
         ]
@@ -312,7 +329,7 @@ async def generate_speech_script_command(
 
         # 5. 为所有页面一次性生成大纲和讲稿，确保演讲连续性
         logger.info(f"Generating content for all {len(image_paths)} pages at once")
-        outlines_data = await generate_outlines_from_pages(image_paths, auxiliary_content)
+        outlines_data = await generate_outlines_from_pages(input_data.source_id, image_paths, auxiliary_content)
 
         # 6. 创建大纲讲稿记录
         outline_sections = []

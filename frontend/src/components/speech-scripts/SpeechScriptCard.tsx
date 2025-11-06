@@ -168,7 +168,7 @@ export function SpeechScriptCard({ speechScript, onDelete, deleting }: SpeechScr
           <div className="rounded-lg bg-background p-6 shadow-lg max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-2">确认删除</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              确定要删除演讲稿 "{speechScript.name}" 吗？此操作无法撤销。
+              确定要删除演讲稿 &ldquo;{speechScript.name}&rdquo; 吗？此操作无法撤销。
             </p>
             <div className="flex items-center gap-2 justify-end">
               <Button

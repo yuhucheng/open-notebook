@@ -1,0 +1,65 @@
+---
+alwaysApply: false
+---
+# Open Notebook - 演讲稿页面设计规则
+
+## 演讲稿页面设计相关文件路径
+
+### 后端代码文件 (Backend Files)
+
+#### 领域模型 (Domain Models)
+- `open_notebook/domain/speech_script.py` - 演讲稿和OutlineSection领域模型定义
+
+#### API服务 (API Services)
+- `api/speech_script_service.py` - 演讲稿业务逻辑服务
+- `api/routers/speech_scripts.py` - 演讲稿REST API路由定义
+
+#### 命令处理 (Command Processing)
+- `commands/speech_commands.py` - 演讲稿生成异步命令处理
+
+### 前端页面文件 (Frontend Pages)
+
+#### 页面路由 (Page Routes)
+- `frontend/src/app/(dashboard)/speech-scripts/page.tsx` - 演讲稿列表页面
+- `frontend/src/app/(dashboard)/speech-scripts/[id]/page.tsx` - 演讲稿详情页面
+
+### 前端组件文件 (Frontend Components)
+
+#### 演讲稿组件 (Speech Script Components)
+- `frontend/src/components/speech-scripts/SpeechScriptsTab.tsx` - 演讲稿选项卡组件
+- `frontend/src/components/speech-scripts/SpeechScriptCard.tsx` - 演讲稿卡片展示组件
+- `frontend/src/components/speech-scripts/SpeechScriptDetail.tsx` - 演讲稿详情展示组件
+- `frontend/src/components/speech-scripts/OutlineSectionCard.tsx` - 大纲部分卡片组件
+- `frontend/src/components/speech-scripts/GenerateSpeechScriptDialog.tsx` - 生成演讲稿对话框组件
+- `frontend/src/components/speech-scripts/OutlineSectionReorderDialog.tsx` - 大纲部分重新排序对话框组件
+
+### 前端工具库文件 (Frontend Libraries)
+
+#### API客户端 (API Clients)
+- `frontend/src/lib/api/speech-scripts.ts` - 演讲稿API客户端
+
+#### Hooks (React Hooks)
+- `frontend/src/lib/hooks/use-speech-scripts.ts` - 演讲稿相关React Hooks
+
+#### 类型定义 (Type Definitions)
+- `frontend/src/lib/types/speech-scripts.ts` - 演讲稿TypeScript类型定义
+
+### 导航和布局 (Navigation & Layout)
+- `frontend/src/components/layout/AppSidebar.tsx` - 应用侧边栏（包含演讲稿导航）
+
+## 演讲稿功能概述
+
+演讲稿页面设计实现了基于PPT文件的智能演讲稿生成功能：
+
+1. **PPT解析**: 从上传的PPT文件中提取页面图片
+2. **AI生成**: 使用AI模型分析PPT内容，生成连贯的大纲和演讲稿
+3. **内容管理**: 支持演讲稿的创建、编辑、删除和管理
+4. **大纲排序**: 支持大纲部分的拖拽排序功能
+5. **辅助内容**: 支持添加辅助资料和笔记本内容来丰富演讲稿
+
+## 开发注意事项
+
+- 演讲稿生成是异步操作，使用surreal-commands进行后台处理
+- 前端使用React Query进行数据缓存和管理
+- 支持多模态内容，包括文本、图片等
+- 演讲稿状态包括: draft, processing, completed, failed

@@ -179,6 +179,65 @@ async def update_outline_section_order(
         raise HTTPException(status_code=500, detail=f"更新排序失败: {str(e)}")
 
 
+@router.put("/speech-scripts/{speech_script_id}")
+async def update_speech_script(
+    speech_script_id: str,
+    update_data: dict
+):
+    """更新演讲稿信息"""
+    try:
+        name = update_data.get("name")
+        description = update_data.get("description")
+
+        if name is None and description is None:
+            raise HTTPException(status_code=400, detail="至少需要提供name或description中的一个")
+
+        result = await SpeechScriptService.update_speech_script(
+            speech_script_id=speech_script_id,
+            name=name,
+            description=description
+        )
+
+        return {"message": "演讲稿更新成功", **result}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating speech script: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"更新演讲稿失败: {str(e)}")
+
+
+@router.put("/speech-scripts/{speech_script_id}/sections/{section_id}")
+async def update_outline_section(
+    speech_script_id: str,
+    section_id: str,
+    update_data: dict
+):
+    """更新大纲讲稿内容"""
+    try:
+        title = update_data.get("title")
+        outline = update_data.get("outline")
+        script = update_data.get("script")
+
+        if title is None and outline is None and script is None:
+            raise HTTPException(status_code=400, detail="至少需要提供title、outline或script中的一个")
+
+        result = await SpeechScriptService.update_outline_section(
+            section_id=section_id,
+            title=title,
+            outline=outline,
+            script=script
+        )
+
+        return {"message": "大纲讲稿更新成功", **result}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating outline section: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"更新大纲讲稿失败: {str(e)}")
+
+
 @router.delete("/speech-scripts/{speech_script_id}")
 async def delete_speech_script(speech_script_id: str):
     """删除演讲稿及其所有大纲讲稿"""

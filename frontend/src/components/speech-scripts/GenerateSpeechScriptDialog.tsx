@@ -633,7 +633,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
                     </p>
                     {allSourcesQuery.data && allSourcesQuery.data.length > 0 && (
                       <p className="text-orange-600">
-                        如果有PPT文件但仍未显示，请检查浏览器控制台的"PPT检测"日志获取详细信息。
+                        如果有PPT文件但仍未显示，请检查浏览器控制台的&ldquo;PPT检测&rdquo;日志获取详细信息。
                       </p>
                     )}
                   </div>
