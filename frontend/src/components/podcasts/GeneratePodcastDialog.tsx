@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 
 import { useNotebooks } from '@/lib/hooks/use-notebooks'
+import { useSpeechScripts } from '@/lib/hooks/use-speech-scripts'
 import { useEpisodeProfiles, useGeneratePodcast } from '@/lib/hooks/use-podcasts'
 import { chatApi } from '@/lib/api/chat'
 import { sourcesApi } from '@/lib/api/sources'
@@ -30,6 +31,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 const SOURCE_MODES = [
   { value: 'insights', label: 'Summary' },
@@ -37,6 +39,8 @@ const SOURCE_MODES = [
 ] as const
 
 type SourceMode = 'off' | 'insights' | 'full'
+
+type ContentMode = 'content' | 'speech_script'
 
 interface NotebookSelection {
   sources: Record<string, SourceMode>
@@ -81,18 +85,25 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
   const [episodeProfileId, setEpisodeProfileId] = useState<string>('')
   const [episodeName, setEpisodeName] = useState('')
   const [instructions, setInstructions] = useState('')
+  const [contentMode, setContentMode] = useState<ContentMode>('content')
+  const [selectedSpeechScriptId, setSelectedSpeechScriptId] = useState<string>('')
 
   const [isBuildingContext, setIsBuildingContext] = useState(false)
   const [tokenCount, setTokenCount] = useState<number>(0)
   const [charCount, setCharCount] = useState<number>(0)
 
   const notebooksQuery = useNotebooks()
+  const speechScriptsQuery = useSpeechScripts()
   const episodeProfilesQuery = useEpisodeProfiles()
   const generatePodcast = useGeneratePodcast()
 
   const notebooks = useMemo(
     () => notebooksQuery.data ?? [],
     [notebooksQuery.data]
+  )
+  const speechScripts = useMemo(
+    () => speechScriptsQuery.speechScripts ?? [],
+    [speechScriptsQuery.speechScripts]
   )
   const episodeProfiles = useMemo(
     () => episodeProfilesQuery.episodeProfiles ?? [],
@@ -190,6 +201,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
     setEpisodeProfileId('')
     setEpisodeName('')
     setInstructions('')
+    setContentMode('content')
+    setSelectedSpeechScriptId('')
     setTokenCount(0)
     setCharCount(0)
   }, [])
@@ -202,7 +215,9 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
 
   // Update token/char counts when selections change
   useEffect(() => {
-    if (!open) {
+    if (!open || contentMode === 'speech_script') {
+      setTokenCount(0)
+      setCharCount(0)
       return
     }
 
@@ -266,7 +281,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
     }
 
     updateContextCounts()
-  }, [open, selections])
+  }, [open, selections, contentMode])
 
   const selectedEpisodeProfile = useMemo(() => {
     if (!episodeProfileId) {
@@ -445,10 +460,13 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
       return
     }
 
-    setIsBuildingContext(true)
-    try {
-      const content = await buildContentFromSelections()
-      if (!content.trim()) {
+    if (contentMode === 'content') {
+      // Validate content selection
+      const hasAnySelections = Object.values(selections).some((selection) =>
+        Object.values(selection.sources).some((mode) => mode !== 'off') ||
+        Object.values(selection.notes).some((mode) => mode !== 'off')
+      )
+      if (!hasAnySelections) {
         toast({
           title: 'Add context',
           description: 'Select at least one source or note to include in the episode.',
@@ -456,13 +474,40 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
         })
         return
       }
+    } else if (contentMode === 'speech_script') {
+      // Validate speech script selection
+      if (!selectedSpeechScriptId) {
+        toast({
+          title: 'Select speech script',
+          description: 'Select a speech script to use for podcast generation.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
 
-      const payload: PodcastGenerationRequest = {
-        episode_profile: selectedEpisodeProfile.name,
-        speaker_profile: selectedEpisodeProfile.speaker_config,
-        episode_name: episodeName.trim(),
-        content,
-        briefing_suffix: instructions.trim() ? instructions.trim() : undefined,
+    setIsBuildingContext(true)
+    try {
+      let payload: PodcastGenerationRequest
+
+      if (contentMode === 'content') {
+        const content = await buildContentFromSelections()
+        payload = {
+          episode_profile: selectedEpisodeProfile.name,
+          speaker_profile: selectedEpisodeProfile.speaker_config,
+          episode_name: episodeName.trim(),
+          content,
+          briefing_suffix: instructions.trim() ? instructions.trim() : undefined,
+        }
+      } else {
+        // speech_script mode
+        payload = {
+          episode_profile: selectedEpisodeProfile.name,
+          speaker_profile: selectedEpisodeProfile.speaker_config,
+          episode_name: episodeName.trim(),
+          speech_script_id: selectedSpeechScriptId,
+          briefing_suffix: instructions.trim() ? instructions.trim() : undefined,
+        }
       }
 
       await generatePodcast.mutateAsync(payload)
@@ -484,12 +529,15 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
     }
   }, [
     buildContentFromSelections,
+    contentMode,
     episodeName,
     generatePodcast,
     instructions,
     onOpenChange,
     resetState,
     selectedEpisodeProfile,
+    selectedSpeechScriptId,
+    selections,
     toast,
   ])
 
@@ -512,15 +560,47 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
 
         <div className="grid gap-6 md:grid-cols-[2fr_1fr] xl:grid-cols-[3fr_1fr]">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
+            {/* Content Mode Selection */}
+            <div className="space-y-3">
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Content
+                  Content Source
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Pick notebooks, sources, and notes to include in this episode.
+                  Choose how to provide content for the podcast episode.
                 </p>
               </div>
+              <RadioGroup
+                value={contentMode}
+                onValueChange={(value) => setContentMode(value as ContentMode)}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="content" id="content-mode" />
+                  <Label htmlFor="content-mode" className="text-sm">
+                    Select Content
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="speech_script" id="speech-script-mode" />
+                  <Label htmlFor="speech-script-mode" className="text-sm">
+                    Use Speech Script
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {contentMode === 'content' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      Content Selection
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Pick notebooks, sources, and notes to include in this episode.
+                    </p>
+                  </div>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">
                   {selectedNotebookSummaries.reduce(
@@ -736,6 +816,74 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                 </ScrollArea>
               )}
             </div>
+            </>
+            )}
+
+            {contentMode === 'speech_script' && (
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Speech Script Selection
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Select a speech script to use as content for the podcast episode.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border bg-muted/30">
+                  {speechScriptsQuery.isLoading ? (
+                    <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading speech scripts
+                    </div>
+                  ) : speechScripts.length === 0 ? (
+                    <div className="p-6 text-sm text-muted-foreground">
+                      No speech scripts found. Create a speech script before generating a podcast.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[60vh]">
+                      <div className="space-y-2 p-4">
+                        <RadioGroup value={selectedSpeechScriptId} onValueChange={setSelectedSpeechScriptId}>
+                          {speechScripts.map((script) => (
+                            <div
+                              key={script.id}
+                              className={`flex items-center gap-3 rounded border bg-background px-3 py-3 cursor-pointer transition-colors ${
+                                selectedSpeechScriptId === script.id
+                                  ? 'border-primary bg-primary/5'
+                                  : 'hover:bg-muted/50'
+                              }`}
+                              onClick={() => setSelectedSpeechScriptId(script.id)}
+                            >
+                              <RadioGroupItem value={script.id} />
+                              <div className="flex flex-1 flex-col gap-1">
+                                <span className="text-sm font-medium text-foreground">
+                                  {script.name}
+                                </span>
+                                {script.description && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {script.description}
+                                  </span>
+                                )}
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span>{script.status}</span>
+                                  <span>•</span>
+                                  <span>{script.outline_sections_count} sections</span>
+                                  {script.created && (
+                                    <>
+                                      <span>•</span>
+                                      <span>Created {new Date(script.created).toLocaleDateString()}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">

@@ -50,6 +50,10 @@ class SpeechScript(ObjectModel):
             return ensure_record_id(value)
         return value
 
+    async def get_outline_sections(self) -> List["OutlineSection"]:
+        """获取该演讲稿的所有大纲讲稿，按order_index排序"""
+        return await OutlineSection.get_by_speech_script(self.id)
+
     def _prepare_save_data(self) -> dict:
         """Override to ensure command field is always RecordID format for database"""
         data = super()._prepare_save_data()

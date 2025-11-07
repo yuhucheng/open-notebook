@@ -56,6 +56,7 @@ export interface PodcastGenerationRequest {
   speaker_profile: string
   episode_name: string
   content?: string
+  speech_script_id?: string
   notebook_id?: string
   briefing_suffix?: string | null
 }

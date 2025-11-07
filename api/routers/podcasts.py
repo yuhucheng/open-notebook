@@ -50,6 +50,7 @@ async def generate_podcast(request: PodcastGenerationRequest):
             episode_name=request.episode_name,
             notebook_id=request.notebook_id,
             content=request.content,
+            speech_script_id=request.speech_script_id,
             briefing_suffix=request.briefing_suffix,
         )
 

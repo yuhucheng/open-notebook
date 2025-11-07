@@ -7,6 +7,7 @@ from surreal_commands import get_command_status, submit_command
 
 from open_notebook.domain.notebook import Notebook
 from open_notebook.domain.podcast import EpisodeProfile, PodcastEpisode, SpeakerProfile
+from open_notebook.domain.speech_script import SpeechScript
 
 
 class PodcastGenerationRequest(BaseModel):
@@ -16,6 +17,7 @@ class PodcastGenerationRequest(BaseModel):
     speaker_profile: str
     episode_name: str
     content: Optional[str] = None
+    speech_script_id: Optional[str] = None
     notebook_id: Optional[str] = None
     briefing_suffix: Optional[str] = None
 
@@ -40,6 +42,7 @@ class PodcastService:
         episode_name: str,
         notebook_id: Optional[str] = None,
         content: Optional[str] = None,
+        speech_script_id: Optional[str] = None,
         briefing_suffix: Optional[str] = None,
     ) -> str:
         """Submit a podcast generation job for background processing"""
@@ -53,6 +56,24 @@ class PodcastService:
             speaker_profile = await SpeakerProfile.get_by_name(speaker_profile_name)
             if not speaker_profile:
                 raise ValueError(f"Speaker profile '{speaker_profile_name}' not found")
+
+            # Get content from speech script if provided
+            if not content and speech_script_id:
+                try:
+                    speech_script = await SpeechScript.get(speech_script_id)
+                    if speech_script:
+                        # Get outline sections and build content
+                        outline_sections = await speech_script.get_outline_sections()
+                        content_parts = []
+                        for section in outline_sections:
+                            content_parts.append(f"## {section.title}\n\n{section.script}")
+                        content = "\n\n".join(content_parts)
+                        logger.info(f"Extracted content from speech script {speech_script_id}: {len(content)} chars")
+                    else:
+                        raise ValueError(f"Speech script {speech_script_id} not found")
+                except Exception as e:
+                    logger.error(f"Failed to get content from speech script: {e}")
+                    raise ValueError(f"Failed to get content from speech script: {str(e)}")
 
             # Get content from notebook if not provided directly
             if not content and notebook_id:
@@ -72,7 +93,7 @@ class PodcastService:
 
             if not content:
                 raise ValueError(
-                    "Content is required - provide either content or notebook_id"
+                    "Content is required - provide either content, speech_script_id, or notebook_id"
                 )
 
             # Prepare command arguments
