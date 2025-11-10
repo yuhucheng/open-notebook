@@ -1,0 +1,5 @@
+-- Migration 11 Down: 移除Speaker Profile的语音语速设置
+-- 移除speaker_profile表的speech_speed字段
+
+-- 移除speech_speed字段
+REMOVE FIELD speech_speed ON speaker_profile;

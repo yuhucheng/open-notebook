@@ -16,6 +16,7 @@ class SpeakerProfileResponse(BaseModel):
     tts_provider: str
     tts_model: str
     speakers: List[Dict[str, Any]]
+    speech_speed: float
 
 
 @router.get("/speaker-profiles", response_model=List[SpeakerProfileResponse])
@@ -31,7 +32,8 @@ async def list_speaker_profiles():
                 description=profile.description or "",
                 tts_provider=profile.tts_provider,
                 tts_model=profile.tts_model,
-                speakers=profile.speakers
+                speakers=profile.speakers,
+                speech_speed=profile.speech_speed
             )
             for profile in profiles
         ]
@@ -62,7 +64,8 @@ async def get_speaker_profile(profile_name: str):
             description=profile.description or "",
             tts_provider=profile.tts_provider,
             tts_model=profile.tts_model,
-            speakers=profile.speakers
+            speakers=profile.speakers,
+            speech_speed=profile.speech_speed
         )
         
     except HTTPException:
@@ -81,6 +84,7 @@ class SpeakerProfileCreate(BaseModel):
     tts_provider: str = Field(..., description="TTS provider")
     tts_model: str = Field(..., description="TTS model name")
     speakers: List[Dict[str, Any]] = Field(..., description="Array of speaker configurations")
+    speech_speed: float = Field(default=1.0, description="Speech speed multiplier (0.5-2.0, where 1.0 is normal speed)")
 
 
 @router.post("/speaker-profiles", response_model=SpeakerProfileResponse)
@@ -92,9 +96,10 @@ async def create_speaker_profile(profile_data: SpeakerProfileCreate):
             description=profile_data.description,
             tts_provider=profile_data.tts_provider,
             tts_model=profile_data.tts_model,
-            speakers=profile_data.speakers
+            speakers=profile_data.speakers,
+            speech_speed=profile_data.speech_speed
         )
-        
+
         await profile.save()
         
         return SpeakerProfileResponse(
@@ -103,7 +108,8 @@ async def create_speaker_profile(profile_data: SpeakerProfileCreate):
             description=profile.description or "",
             tts_provider=profile.tts_provider,
             tts_model=profile.tts_model,
-            speakers=profile.speakers
+            speakers=profile.speakers,
+            speech_speed=profile.speech_speed
         )
         
     except Exception as e:
@@ -119,20 +125,21 @@ async def update_speaker_profile(profile_id: str, profile_data: SpeakerProfileCr
     """Update an existing speaker profile"""
     try:
         profile = await SpeakerProfile.get(profile_id)
-        
+
         if not profile:
             raise HTTPException(
                 status_code=404,
                 detail=f"Speaker profile '{profile_id}' not found"
             )
-        
+
         # Update fields
         profile.name = profile_data.name
         profile.description = profile_data.description
         profile.tts_provider = profile_data.tts_provider
         profile.tts_model = profile_data.tts_model
         profile.speakers = profile_data.speakers
-        
+        profile.speech_speed = profile_data.speech_speed
+
         await profile.save()
         
         return SpeakerProfileResponse(
@@ -141,7 +148,8 @@ async def update_speaker_profile(profile_id: str, profile_data: SpeakerProfileCr
             description=profile.description or "",
             tts_provider=profile.tts_provider,
             tts_model=profile.tts_model,
-            speakers=profile.speakers
+            speakers=profile.speakers,
+            speech_speed=profile.speech_speed
         )
         
     except HTTPException:
@@ -198,7 +206,8 @@ async def duplicate_speaker_profile(profile_id: str):
             description=original.description,
             tts_provider=original.tts_provider,
             tts_model=original.tts_model,
-            speakers=original.speakers
+            speakers=original.speakers,
+            speech_speed=original.speech_speed
         )
         
         await duplicate.save()

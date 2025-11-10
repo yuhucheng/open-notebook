@@ -1,0 +1,8 @@
+-- Migration 11: 为Speaker Profile添加语音语速设置
+-- 为speaker_profile表添加speech_speed字段，用于控制TTS语音播放速度
+
+-- 为speaker_profile表添加speech_speed字段，默认值为1.0（正常语速）
+DEFINE FIELD speech_speed ON speaker_profile TYPE float DEFAULT 1.0;
+
+-- 为speech_speed字段添加注释说明
+-- speech_speed: 语音语速倍数，范围0.5-2.0，1.0表示正常语速

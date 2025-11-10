@@ -62,6 +62,16 @@ class SpeakerProfile(ObjectModel):
     speakers: List[Dict[str, Any]] = Field(
         ..., description="Array of speaker configurations"
     )
+    speech_speed: float = Field(
+        1.0, description="Speech speed multiplier (0.5-2.0, where 1.0 is normal speed)"
+    )
+
+    @field_validator("speech_speed")
+    @classmethod
+    def validate_speech_speed(cls, v):
+        if not 0.5 <= v <= 2.0:
+            raise ValueError("Speech speed must be between 0.5 and 2.0")
+        return v
 
     @field_validator("speakers")
     @classmethod
@@ -75,6 +85,8 @@ class SpeakerProfile(ObjectModel):
                 if field not in speaker:
                     raise ValueError(f"Speaker missing required field: {field}")
         return v
+
+
 
     @classmethod
     async def get_by_name(cls, name: str) -> Optional["SpeakerProfile"]:

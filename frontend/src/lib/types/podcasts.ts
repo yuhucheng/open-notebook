@@ -35,6 +35,7 @@ export interface SpeakerProfile {
   tts_provider: string
   tts_model: string
   speakers: SpeakerVoiceConfig[]
+  speech_speed: number
 }
 
 export interface PodcastEpisode {

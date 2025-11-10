@@ -49,6 +49,7 @@ const speakerProfileSchema = z.object({
     .array(speakerConfigSchema)
     .min(1, 'At least one speaker is required')
     .max(4, 'You can configure up to 4 speakers'),
+  speech_speed: z.number().min(0.5, 'Speech speed must be at least 0.5').max(2.0, 'Speech speed must be at most 2.0'),
 })
 
 export type SpeakerProfileFormValues = z.infer<typeof speakerProfileSchema>
@@ -91,6 +92,7 @@ export function SpeakerProfileFormDialog({
         tts_provider: initialData.tts_provider,
         tts_model: initialData.tts_model,
         speakers: initialData.speakers?.map((speaker) => ({ ...speaker })) ?? [{ ...EMPTY_SPEAKER }],
+        speech_speed: initialData.speech_speed ?? 1.0,
       }
     }
 
@@ -100,6 +102,7 @@ export function SpeakerProfileFormDialog({
       tts_provider: firstProvider,
       tts_model: firstModel,
       speakers: [{ ...EMPTY_SPEAKER }],
+      speech_speed: 1.0,
     }
   }, [initialData, modelOptions, providers])
 
@@ -268,6 +271,28 @@ export function SpeakerProfileFormDialog({
                 placeholder="Notes about tone, brand, or usage"
                 {...register('description')}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="speech_speed">Speech Speed</Label>
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2.0"
+                  step="0.1"
+                  {...register('speech_speed', { valueAsNumber: true })}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0.5x (Slow)</span>
+                  <span className="font-medium">{watch('speech_speed') || 1.0}x</span>
+                  <span>2.0x (Fast)</span>
+                </div>
+              </div>
+              {errors.speech_speed ? (
+                <p className="text-xs text-red-600">{errors.speech_speed.message}</p>
+              ) : null}
             </div>
           </div>
 
