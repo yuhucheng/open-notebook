@@ -57,23 +57,20 @@ class PodcastService:
             if not speaker_profile:
                 raise ValueError(f"Speaker profile '{speaker_profile_name}' not found")
 
-            # Get content from speech script if provided
+            # Check if we should use speech script directly (don't extract content)
+            use_speech_script = False
             if not content and speech_script_id:
+                # Validate speech script exists
                 try:
                     speech_script = await SpeechScript.get(speech_script_id)
                     if speech_script:
-                        # Get outline sections and build content
-                        outline_sections = await speech_script.get_outline_sections()
-                        content_parts = []
-                        for section in outline_sections:
-                            content_parts.append(f"## {section.title}\n\n{section.script}")
-                        content = "\n\n".join(content_parts)
-                        logger.info(f"Extracted content from speech script {speech_script_id}: {len(content)} chars")
+                        use_speech_script = True
+                        logger.info(f"Will use speech script {speech_script_id} for podcast generation")
                     else:
                         raise ValueError(f"Speech script {speech_script_id} not found")
                 except Exception as e:
-                    logger.error(f"Failed to get content from speech script: {e}")
-                    raise ValueError(f"Failed to get content from speech script: {str(e)}")
+                    logger.error(f"Failed to get speech script: {e}")
+                    raise ValueError(f"Failed to get speech script: {str(e)}")
 
             # Get content from notebook if not provided directly
             if not content and notebook_id:
@@ -91,19 +88,30 @@ class PodcastService:
                     )
                     content = f"Notebook ID: {notebook_id}"
 
-            if not content:
+            if not content and not use_speech_script:
                 raise ValueError(
                     "Content is required - provide either content, speech_script_id, or notebook_id"
                 )
 
-            # Prepare command arguments
-            command_args = {
-                "episode_profile": episode_profile_name,
-                "speaker_profile": speaker_profile_name,
-                "episode_name": episode_name,
-                "content": str(content),
-                "briefing_suffix": briefing_suffix,
-            }
+            # Prepare command arguments based on whether using speech script or content
+            if use_speech_script:
+                command_args = {
+                    "episode_profile": episode_profile_name,
+                    "speaker_profile": speaker_profile_name,
+                    "episode_name": episode_name,
+                    "speech_script_id": speech_script_id,
+                    "briefing_suffix": briefing_suffix,
+                }
+                command_name = "generate_podcast_speech_script"
+            else:
+                command_args = {
+                    "episode_profile": episode_profile_name,
+                    "speaker_profile": speaker_profile_name,
+                    "episode_name": episode_name,
+                    "content": str(content),
+                    "briefing_suffix": briefing_suffix,
+                }
+                command_name = "generate_podcast"
 
             # Ensure command modules are imported before submitting
             # This is needed because submit_command validates against local registry
@@ -114,14 +122,14 @@ class PodcastService:
                 raise ValueError("Podcast commands not available")
 
             # Submit command to surreal-commands
-            job_id = submit_command("open_notebook", "generate_podcast", command_args)
+            job_id = submit_command("open_notebook", command_name, command_args)
 
             # Convert RecordID to string if needed
             if not job_id:
                 raise ValueError("Failed to get job_id from submit_command")
             job_id_str = str(job_id)
             logger.info(
-                f"Submitted podcast generation job: {job_id_str} for episode '{episode_name}'"
+                f"Submitted podcast generation job: {job_id_str} for episode '{episode_name}' using command '{command_name}'"
             )
             return job_id_str
 

@@ -96,7 +96,7 @@ class EpisodeProfileCreate(BaseModel):
     transcript_provider: str = Field(..., description="AI provider for transcript generation")
     transcript_model: str = Field(..., description="AI model for transcript generation")
     default_briefing: str = Field(..., description="Default briefing template")
-    num_segments: int = Field(default=5, description="Number of podcast segments")
+    num_segments: int = Field(default=5, ge=1, le=100, description="Number of podcast segments (1-100)")
 
 
 @router.post("/episode-profiles", response_model=EpisodeProfileResponse)

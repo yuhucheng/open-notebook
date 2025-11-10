@@ -86,25 +86,25 @@ async def show_recent_notebooks():
 async def show_pending_commands():
     """显示待处理的命令"""
     console.print("\n[bold cyan]待处理的命令[/bold cyan]\n")
-    
+
     try:
         from open_notebook.database.repository import db_connection
-        
+
         async with db_connection() as db:
             result = await db.query(
                 "SELECT * FROM commands WHERE status = 'pending' LIMIT 10"
             )
-            
+
             if not result:
                 console.print("[green]✓ 没有待处理的命令[/green]")
                 return True
-            
+
             table = Table(title="待处理命令")
             table.add_column("ID", style="cyan")
             table.add_column("命令", style="magenta")
             table.add_column("状态", style="yellow")
             table.add_column("创建时间", style="blue")
-            
+
             for command in result:
                 table.add_row(
                     str(command.get("id", "N/A")),
@@ -112,11 +112,11 @@ async def show_pending_commands():
                     command.get("status", "N/A"),
                     str(command.get("created_at", "N/A"))[:19]
                 )
-            
+
             console.print(table)
             console.print(f"\n[yellow]共有 {len(result)} 个待处理命令[/yellow]")
             return True
-        
+
     except Exception as e:
         console.print(f"[red]✗[/red] 查询失败: {e}")
         return False

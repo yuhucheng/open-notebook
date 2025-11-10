@@ -37,10 +37,14 @@ try:
         sys.exit(1)
     
     print("2. 启动worker...")
-    # 使用surreal-commands的run_worker函数
-    from surreal_commands.core.worker import run_worker
+    # 使用surreal-commands的worker
+    from surreal_commands.core.worker import Worker
     import asyncio
-
+    
+    async def run_worker():
+        worker = Worker()
+        await worker.run()
+    
     asyncio.run(run_worker())
     
 except Exception as e:

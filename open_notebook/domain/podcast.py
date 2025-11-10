@@ -30,8 +30,8 @@ class EpisodeProfile(ObjectModel):
     @field_validator("num_segments")
     @classmethod
     def validate_segments(cls, v):
-        if not 3 <= v <= 20:
-            raise ValueError("Number of segments must be between 3 and 20")
+        if not 1 <= v <= 100:
+            raise ValueError("Number of segments must be between 1 and 100")
         return v
 
     @classmethod
