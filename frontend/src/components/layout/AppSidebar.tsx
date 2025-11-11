@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
 import { CreateNotebookDialog } from '@/components/notebooks/CreateNotebookDialog'
 import { GeneratePodcastDialog } from '@/components/podcasts/GeneratePodcastDialog'
@@ -80,6 +82,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { logout } = useAuth()
   const { isCollapsed, toggleCollapse } = useSidebarStore()
+  const { t } = useTranslation()
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
@@ -135,7 +138,7 @@ export function AppSidebar() {
               <div className="flex items-center gap-2">
                 <Image src="/logo.svg" alt="Open Notebook" width={32} height={32} />
                 <span className="text-base font-medium text-sidebar-foreground">
-                  Open Notebook
+                  {t('sidebar.Open Notebook')}
                 </span>
               </div>
               <Button
@@ -172,13 +175,13 @@ export function AppSidebar() {
                         variant="default"
                         size="sm"
                         className="w-full justify-center px-2 bg-primary hover:bg-primary/90 text-primary-foreground border-0"
-                        aria-label="Create"
+                        aria-label={t('sidebar.Create')}
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="right">Create</TooltipContent>
+                  <TooltipContent side="right">{t('sidebar.Create')}</TooltipContent>
                 </Tooltip>
               ) : (
                 <DropdownMenuTrigger asChild>
@@ -189,7 +192,7 @@ export function AppSidebar() {
                     className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground border-0"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Create
+                    {t('sidebar.Create')}
                   </Button>
                 </DropdownMenuTrigger>
               )}
@@ -207,7 +210,7 @@ export function AppSidebar() {
                   className="gap-2"
                 >
                   <FileText className="h-4 w-4" />
-                  Source
+                  {t('sidebar.Source')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={(event) => {
@@ -217,7 +220,7 @@ export function AppSidebar() {
                   className="gap-2"
                 >
                   <Book className="h-4 w-4" />
-                  Notebook
+                  {t('sidebar.Notebook')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={(event) => {
@@ -227,7 +230,7 @@ export function AppSidebar() {
                   className="gap-2"
                 >
                   <Mic className="h-4 w-4" />
-                  Podcast
+                  {t('sidebar.Podcast')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -241,7 +244,7 @@ export function AppSidebar() {
               <div className="space-y-1">
                 {!isCollapsed && (
                   <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">
-                    {section.title}
+                    {t(`sidebar.${section.title}`)}
                   </h3>
                 )}
 
@@ -257,7 +260,7 @@ export function AppSidebar() {
                       )}
                     >
                       <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.name}</span>}
+                      {!isCollapsed && <span>{t(`sidebar.${item.name}`)}</span>}
                     </Button>
                   )
 
@@ -269,7 +272,7 @@ export function AppSidebar() {
                             {button}
                           </Link>
                         </TooltipTrigger>
-                        <TooltipContent side="right">{item.name}</TooltipContent>
+                        <TooltipContent side="right">{t(`sidebar.${item.name}`)}</TooltipContent>
                       </Tooltip>
                     )
                   }
@@ -304,26 +307,46 @@ export function AppSidebar() {
                     <ThemeToggle iconOnly />
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="right">Theme</TooltipContent>
+                <TooltipContent side="right">{t('sidebar.Theme')}</TooltipContent>
               </Tooltip>
             ) : (
               <ThemeToggle />
             )}
           </div>
 
+          <div
+            className={cn(
+              'flex',
+              isCollapsed ? 'justify-center' : 'justify-start'
+            )}
+          >
+            {isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <LanguageSwitcher iconOnly />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">{t('common.language')}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <LanguageSwitcher iconOnly={false} />
+            )}
+          </div>
+
           {isCollapsed ? (
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-center"
-                  onClick={logout}
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Sign Out</TooltipContent>
-            </Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-center"
+                onClick={logout}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t('sidebar.Sign Out')}</TooltipContent>
+          </Tooltip>
           ) : (
             <Button
               variant="outline"
@@ -331,7 +354,7 @@ export function AppSidebar() {
               onClick={logout}
             >
               <LogOut className="h-4 w-4" />
-              Sign Out
+              {t('sidebar.Sign Out')}
             </Button>
           )}
         </div>

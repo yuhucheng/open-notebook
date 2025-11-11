@@ -1,0 +1,75 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error occurred",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "more": "More",
+    "language": "Language"
+  },
+  "header": {
+    "logo": "Open Notebook",
+    "search": "Search...",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "sidebar": {
+    "Collect": "Collect",
+    "Process": "Process",
+    "Create": "Create",
+    "Manage": "Manage",
+    "Sources": "Sources",
+    "Notebooks": "Notebooks",
+    "Ask and Search": "Ask and Search",
+    "Podcasts": "Podcasts",
+    "演讲稿": "Speech Scripts",
+    "Models": "Models",
+    "Transformations": "Transformations",
+    "Settings": "Settings",
+    "Advanced": "Advanced",
+    "Source": "Source",
+    "Notebook": "Notebook",
+    "Podcast": "Podcast",
+    "Theme": "Theme",
+    "Sign Out": "Sign Out",
+    "Open Notebook": "会来事"
+  },
+  "notebooks": {
+    "title": "Notebooks",
+    "newNotebook": "New Notebook",
+    "notebookName": "Notebook Name",
+    "description": "Description",
+    "createdAt": "Created At",
+    "lastUpdated": "Last Updated",
+    "emptyState": "No notebooks found. Create your first notebook!"
+  },
+  "notes": {
+    "title": "Notes",
+    "newNote": "New Note",
+    "noteTitle": "Note Title",
+    "content": "Content",
+    "createdAt": "Created At",
+    "lastUpdated": "Last Updated",
+    "emptyState": "No notes found. Create your first note!"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?"
+  }
+}

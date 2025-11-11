@@ -1,0 +1,75 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "发生错误",
+    "success": "成功",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "view": "查看",
+    "create": "创建",
+    "search": "搜索",
+    "filter": "筛选",
+    "sort": "排序",
+    "more": "更多",
+    "language": "语言"
+  },
+  "header": {
+    "logo": "开放式笔记本",
+    "search": "搜索...",
+    "profile": "个人资料",
+    "settings": "设置",
+    "logout": "退出登录"
+  },
+  "sidebar": {
+    "Collect": "收集",
+    "Process": "处理",
+    "Create": "创建",
+    "Manage": "管理",
+    "Sources": "来源",
+    "Notebooks": "笔记本",
+    "Ask and Search": "提问和搜索",
+    "Podcasts": "播客",
+    "演讲稿": "演讲稿",
+    "Models": "模型",
+    "Transformations": "转换",
+    "Settings": "设置",
+    "Advanced": "高级",
+    "Source": "来源",
+    "Notebook": "笔记本",
+    "Podcast": "播客",
+    "Theme": "主题",
+    "Sign Out": "退出登录",
+    "Open Notebook": "会来事"
+  },
+  "notebooks": {
+    "title": "笔记本",
+    "newNotebook": "新建笔记本",
+    "notebookName": "笔记本名称",
+    "description": "描述",
+    "createdAt": "创建时间",
+    "lastUpdated": "最后更新",
+    "emptyState": "没有找到笔记本。创建你的第一个笔记本吧！"
+  },
+  "notes": {
+    "title": "笔记",
+    "newNote": "新建笔记",
+    "noteTitle": "笔记标题",
+    "content": "内容",
+    "createdAt": "创建时间",
+    "lastUpdated": "最后更新",
+    "emptyState": "没有找到笔记。创建你的第一个笔记吧！"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "forgotPassword": "忘记密码？",
+    "dontHaveAccount": "没有账号？",
+    "alreadyHaveAccount": "已有账号？"
+  }
+}

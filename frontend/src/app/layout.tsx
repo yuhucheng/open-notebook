@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { I18nProvider } from "@/components/providers/I18nProvider";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { ConnectionGuard } from "@/components/common/ConnectionGuard";
 import { themeScript } from "@/lib/theme-script";
@@ -25,15 +26,17 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <ErrorBoundary>
           <ThemeProvider>
-            <QueryProvider>
-              <ConnectionGuard>
-                {children}
-                <Toaster />
-              </ConnectionGuard>
-            </QueryProvider>
+            <I18nProvider>
+              <QueryProvider>
+                <ConnectionGuard>
+                  {children}
+                  <Toaster />
+                </ConnectionGuard>
+              </QueryProvider>
+            </I18nProvider>
           </ThemeProvider>
         </ErrorBoundary>
       </body>
