@@ -42,6 +42,7 @@ import {
   Plus,
   Wrench,
   Presentation,
+  TvMinimalPlay
 } from 'lucide-react'
 
 const navigation = [
@@ -61,8 +62,9 @@ const navigation = [
   {
     title: 'Create',
     items: [
+      { name: 'Speech', href: '/speech-scripts', icon: Presentation },
       { name: 'Podcasts', href: '/podcasts', icon: Mic },
-      { name: '演讲稿', href: '/speech-scripts', icon: Presentation },
+      { name: 'Meeting', href: '/meetings', icon: TvMinimalPlay },
     ],
   },
   {
