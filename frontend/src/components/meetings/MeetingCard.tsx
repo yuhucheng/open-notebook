@@ -70,10 +70,10 @@ export function MeetingCard({ meeting, onDelete, deleting }: MeetingCardProps) {
                 <Clock className="h-3 w-3" />
                 时长: {duration}
               </div>
-              {meeting.speech_ids.length > 0 && (
+              {meeting.postcat_ids?.length && (
                 <div className="flex items-center gap-1">
                   <Hash className="h-3 w-3" />
-                  {meeting.speech_ids.length} 个演讲稿
+                  {meeting.postcat_ids.length} 个播客
                 </div>
               )}
             </div>
@@ -119,13 +119,13 @@ export function MeetingCard({ meeting, onDelete, deleting }: MeetingCardProps) {
                     </div>
                   </div>
 
-                  {meeting.speech_ids.length > 0 && (
+                  {meeting.postcat_ids?.length && (
                     <div className="space-y-2">
-                      <h4 className="text-sm font-semibold text-foreground">关联演讲稿</h4>
+                      <h4 className="text-sm font-semibold text-foreground">关联播客</h4>
                       <div className="flex flex-wrap gap-2">
-                        {meeting.speech_ids.map((speechId, index) => (
+                        {meeting.postcat_ids.map((podcastId, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
-                            {speechId}
+                            {podcastId}
                           </Badge>
                         ))}
                       </div>

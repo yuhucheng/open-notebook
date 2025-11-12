@@ -3,7 +3,7 @@ export interface Meeting {
   theme: string
   start_time: number
   end_time: number
-  speech_ids: string[]
+  postcat_ids: string[]
   meeting_code: string
 }
 
@@ -11,6 +11,6 @@ export interface CreateMeetingRequest {
   theme: string
   start_time: number
   end_time: number
-  speech_ids: string[]
+  postcat_ids: string[]
 }
 

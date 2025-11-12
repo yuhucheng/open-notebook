@@ -34,10 +34,10 @@ export default function MeetingsPage() {
                   <Video className="h-4 w-4" />
                   会议
                 </TabsTrigger>
-                <TabsTrigger value="templates">
+                {/* <TabsTrigger value="templates">
                   <LayoutTemplate className="h-4 w-4" />
                   模板
-                </TabsTrigger>
+                </TabsTrigger> */}
               </TabsList>
             </div>
 

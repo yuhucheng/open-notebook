@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { Loader2 } from 'lucide-react'
 
 import { useCreateMeeting, useMeetings } from '@/lib/hooks/use-meetings'
-import { useSpeechScripts } from '@/lib/hooks/use-speech-scripts'
+import { usePodcastEpisodes } from '@/lib/hooks/use-podcasts'
 import {
   Dialog,
   DialogContent,
@@ -18,14 +18,13 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { MeetingTimeSelector } from './MeetingTimeSelector'
 
 interface GenerateMeetingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-// 会议间隔时间（毫秒）：15分钟
-const MEETING_INTERVAL_MS = 15 * 60 * 1000
 // 最短会议时长（毫秒）：15分钟
 const MIN_MEETING_DURATION_MS = 15 * 60 * 1000
 
@@ -44,80 +43,80 @@ function parseDateTimeLocal(value: string): number {
   return new Date(value).getTime()
 }
 
-// 检查会议时间是否与已有会议冲突（考虑15分钟间隔）
-function hasTimeConflict(
-  newStartTime: number,
-  newEndTime: number,
-  existingMeetings: Array<{ start_time: number; end_time: number }>
-): boolean {
-  // 新会议的开始和结束时间都要考虑15分钟间隔
-  const newStartWithInterval = newStartTime - MEETING_INTERVAL_MS
-  const newEndWithInterval = newEndTime + MEETING_INTERVAL_MS
-
-  return existingMeetings.some((meeting) => {
-    // 检查新会议是否与已有会议的时间范围重叠（考虑间隔）
-    return (
-      (newStartWithInterval < meeting.end_time && newEndWithInterval > meeting.start_time) ||
-      (meeting.start_time < newEndWithInterval && meeting.end_time > newStartWithInterval)
-    )
-  })
-}
-
 export function GenerateMeetingDialog({
   open,
   onOpenChange,
 }: GenerateMeetingDialogProps) {
   const [theme, setTheme] = useState('')
+  
+  // 使用独立的日期和时间状态
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })
+  
   const [startTime, setStartTime] = useState(() => {
-    // 默认开始时间为当前时间，向上取整到最近的15分钟
     const now = new Date()
     const minutes = now.getMinutes()
     const roundedMinutes = Math.ceil(minutes / 15) * 15
-    now.setMinutes(roundedMinutes)
-    now.setSeconds(0)
-    now.setMilliseconds(0)
-    return formatDateTimeLocal(now)
+    const hours = roundedMinutes >= 60 ? now.getHours() + 1 : now.getHours()
+    const finalMinutes = roundedMinutes >= 60 ? 0 : roundedMinutes
+    return `${String(hours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`
   })
+  
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })
+  
   const [endTime, setEndTime] = useState(() => {
-    // 默认结束时间为开始时间后15分钟（最短时长）
-    const defaultEnd = new Date(parseDateTimeLocal(startTime))
-    defaultEnd.setMinutes(defaultEnd.getMinutes() + 15)
-    return formatDateTimeLocal(defaultEnd)
+    const now = new Date()
+    const minutes = now.getMinutes()
+    const roundedMinutes = Math.ceil(minutes / 15) * 15
+    const hours = roundedMinutes >= 60 ? now.getHours() + 1 : now.getHours()
+    const finalMinutes = roundedMinutes >= 60 ? 0 : roundedMinutes
+    const endHours = finalMinutes === 45 ? hours + 1 : hours
+    const endMinutes = finalMinutes === 45 ? 0 : finalMinutes + 15
+    return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`
   })
-  const [selectedSpeechIds, setSelectedSpeechIds] = useState<string[]>([])
+  
+  const [selectedPodcastIds, setSelectedPodcastIds] = useState<string[]>([])
 
   const createMeeting = useCreateMeeting()
-  const { speechScripts, isLoading: loadingSpeechScripts } = useSpeechScripts()
-  const { meetings: existingMeetings } = useMeetings()
+  const { episodes, isLoading: loadingPodcasts } = usePodcastEpisodes({ autoRefresh: false })
 
-  // 只显示已完成的演讲稿
-  const completedSpeechScripts = useMemo(() => {
-    return speechScripts.filter((script) => script.status === 'completed')
-  }, [speechScripts])
+  // 组合日期和时间为时间戳
+  const startTimestamp = useMemo(() => {
+    return parseDateTimeLocal(`${startDate}T${startTime}`)
+  }, [startDate, startTime])
+
+  const endTimestamp = useMemo(() => {
+    return parseDateTimeLocal(`${endDate}T${endTime}`)
+  }, [endDate, endTime])
+
+  // 只显示已完成的播客
+  const completedPodcasts = useMemo(() => {
+    return episodes.filter((episode) => episode.job_status === 'completed')
+  }, [episodes])
 
   // 计算会议时长
   const meetingDuration = useMemo(() => {
-    const start = parseDateTimeLocal(startTime)
-    const end = parseDateTimeLocal(endTime)
-    return end - start
-  }, [startTime, endTime])
-
-  // 检查时间冲突
-  const timeConflict = useMemo(() => {
-    const start = parseDateTimeLocal(startTime)
-    const end = parseDateTimeLocal(endTime)
-    if (end <= start) return null
-    return hasTimeConflict(start, end, existingMeetings)
-  }, [startTime, endTime, existingMeetings])
+    return endTimestamp - startTimestamp
+  }, [startTimestamp, endTimestamp])
 
   // 验证时长是否满足最短要求
   const durationValid = meetingDuration >= MIN_MEETING_DURATION_MS
 
   // 检查是否预约了过去的时间
   const isPastTime = useMemo(() => {
-    const start = parseDateTimeLocal(startTime)
-    return start < Date.now()
-  }, [startTime])
+    return startTimestamp < Date.now()
+  }, [startTimestamp])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -126,18 +125,11 @@ export function GenerateMeetingDialog({
       return
     }
 
-    const startTimestamp = parseDateTimeLocal(startTime)
-    const endTimestamp = parseDateTimeLocal(endTime)
-
     if (endTimestamp <= startTimestamp) {
       return
     }
 
     if (!durationValid) {
-      return
-    }
-
-    if (timeConflict) {
       return
     }
 
@@ -150,7 +142,7 @@ export function GenerateMeetingDialog({
         theme: theme.trim(),
         start_time: startTimestamp,
         end_time: endTimestamp,
-        speech_ids: selectedSpeechIds,
+        postcat_ids: selectedPodcastIds,
       })
       onOpenChange(false)
       resetForm()
@@ -166,69 +158,77 @@ export function GenerateMeetingDialog({
 
   const resetForm = () => {
     setTheme('')
+    
+    // 重置开始日期和时间
     const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    setStartDate(`${year}-${month}-${day}`)
+    
     const minutes = now.getMinutes()
     const roundedMinutes = Math.ceil(minutes / 15) * 15
-    now.setMinutes(roundedMinutes)
-    now.setSeconds(0)
-    now.setMilliseconds(0)
-    const defaultStart = formatDateTimeLocal(now)
-    setStartTime(defaultStart)
-    const defaultEnd = new Date(parseDateTimeLocal(defaultStart))
-    defaultEnd.setMinutes(defaultEnd.getMinutes() + 15)
-    setEndTime(formatDateTimeLocal(defaultEnd))
-    setSelectedSpeechIds([])
+    const hours = roundedMinutes >= 60 ? now.getHours() + 1 : now.getHours()
+    const finalMinutes = roundedMinutes >= 60 ? 0 : roundedMinutes
+    setStartTime(`${String(hours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`)
+    
+    // 重置结束日期和时间
+    setEndDate(`${year}-${month}-${day}`)
+    const endHours = finalMinutes === 45 ? hours + 1 : hours
+    const endMinutes = finalMinutes === 45 ? 0 : finalMinutes + 15
+    setEndTime(`${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`)
+    
+    setSelectedPodcastIds([])
   }
 
-  const handleStartTimeChange = (value: string) => {
-    // 将时间对齐到15分钟间隔
-    const date = new Date(value)
-    const minutes = date.getMinutes()
-    const roundedMinutes = Math.round(minutes / 15) * 15
-    date.setMinutes(roundedMinutes)
-    date.setSeconds(0)
-    date.setMilliseconds(0)
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value)
     
-    const alignedValue = formatDateTimeLocal(date)
-    setStartTime(alignedValue)
-    
-    // 如果结束时间早于新的开始时间，自动调整结束时间
-    const newStart = parseDateTimeLocal(alignedValue)
-    const currentEnd = parseDateTimeLocal(endTime)
-    if (currentEnd <= newStart) {
-      const newEnd = new Date(newStart)
-      newEnd.setMinutes(newEnd.getMinutes() + 15)
-      setEndTime(formatDateTimeLocal(newEnd))
+    // 如果结束日期早于新的开始日期，自动调整结束日期
+    if (value > endDate) {
+      setEndDate(value)
     }
   }
 
-  const handleEndTimeChange = (value: string) => {
-    // 将时间对齐到15分钟间隔
-    const date = new Date(value)
-    const minutes = date.getMinutes()
-    const roundedMinutes = Math.round(minutes / 15) * 15
-    date.setMinutes(roundedMinutes)
-    date.setSeconds(0)
-    date.setMilliseconds(0)
+  const handleStartTimeChange = (value: string) => {
+    setStartTime(value)
     
-    const alignedValue = formatDateTimeLocal(date)
-    setEndTime(alignedValue)
+    // 如果是同一天且结束时间早于开始时间，自动调整结束时间
+    if (startDate === endDate) {
+      const newStartTimestamp = parseDateTimeLocal(`${startDate}T${value}`)
+      const currentEndTimestamp = parseDateTimeLocal(`${endDate}T${endTime}`)
+      
+      if (currentEndTimestamp <= newStartTimestamp) {
+        const newEnd = new Date(newStartTimestamp)
+        newEnd.setMinutes(newEnd.getMinutes() + 15)
+        const endHours = String(newEnd.getHours()).padStart(2, '0')
+        const endMinutes = String(newEnd.getMinutes()).padStart(2, '0')
+        setEndTime(`${endHours}:${endMinutes}`)
+      }
+    }
   }
 
-  const handleSpeechScriptToggle = (speechId: string) => {
-    setSelectedSpeechIds((prev) =>
-      prev.includes(speechId)
-        ? prev.filter((id) => id !== speechId)
-        : [...prev, speechId]
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value)
+  }
+
+  const handleEndTimeChange = (value: string) => {
+    setEndTime(value)
+  }
+
+  const handlePodcastToggle = (podcastId: string) => {
+    setSelectedPodcastIds((prev) =>
+      prev.includes(podcastId)
+        ? prev.filter((id) => id !== podcastId)
+        : [...prev, podcastId]
     )
   }
 
   const isSubmitting = createMeeting.isPending
   const canSubmit =
     theme.trim() &&
-    parseDateTimeLocal(endTime) > parseDateTimeLocal(startTime) &&
+    endTimestamp > startTimestamp &&
     durationValid &&
-    !timeConflict &&
     !isPastTime
 
   return (
@@ -237,11 +237,8 @@ export function GenerateMeetingDialog({
         <DialogHeader>
           <DialogTitle>创建会议</DialogTitle>
           <DialogDescription>
-            预约一个新的会议，选择会议主题、时间和关联的演讲稿。
-            <br />
-            <span className="text-xs text-muted-foreground">
-              最短会议时长为15分钟，每场会议之间至少间隔15分钟。
-            </span>
+            预约一个新的会议，选择会议主题、时间和关联的播客。
+
           </DialogDescription>
         </DialogHeader>
 
@@ -263,43 +260,33 @@ export function GenerateMeetingDialog({
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-start-time">开始时间 *</Label>
-                  <Input
-                    id="meeting-start-time"
-                    type="datetime-local"
-                    value={startTime}
-                    onChange={(e) => handleStartTimeChange(e.target.value)}
-                    required
-                    step={900}
-                    min={formatDateTimeLocal(new Date())}
-                    disabled={isSubmitting}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    时间将自动对齐到15分钟间隔。不可预约过去的时间。
-                  </p>
-                </div>
+              <div className="space-y-4">
+                <MeetingTimeSelector
+                  label="开始时间 *"
+                  date={startDate}
+                  time={startTime}
+                  onDateChange={handleStartDateChange}
+                  onTimeChange={handleStartTimeChange}
+                  disabled={isSubmitting}
+                  description="选择会议开始的日期和时间（15分钟间隔）。"
+                  type="start"
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-end-time">结束时间 *</Label>
-                  <Input
-                    id="meeting-end-time"
-                    type="datetime-local"
-                    value={endTime}
-                    onChange={(e) => handleEndTimeChange(e.target.value)}
-                    required
-                    min={startTime}
-                    step={900}
-                    disabled={isSubmitting}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    时间将自动对齐到15分钟间隔。最短时长为15分钟。
-                  </p>
-                </div>
+                <MeetingTimeSelector
+                  label="结束时间 *"
+                  date={endDate}
+                  time={endTime}
+                  onDateChange={handleEndDateChange}
+                  onTimeChange={handleEndTimeChange}
+                  disabled={isSubmitting}
+                  description="选择会议结束的日期和时间。最短时长为15分钟。"
+                  type="end"
+                  startDate={startDate}
+                  startTime={startTime}
+                />
               </div>
 
-              {parseDateTimeLocal(endTime) <= parseDateTimeLocal(startTime) && (
+              {endTimestamp <= startTimestamp && (
                 <Alert variant="destructive">
                   <AlertDescription>
                     结束时间必须晚于开始时间。
@@ -307,19 +294,11 @@ export function GenerateMeetingDialog({
                 </Alert>
               )}
 
-              {!durationValid && parseDateTimeLocal(endTime) > parseDateTimeLocal(startTime) && (
+              {!durationValid && endTimestamp > startTimestamp && (
                 <Alert variant="destructive">
                   <AlertDescription>
                     会议时长至少为15分钟。当前时长为{' '}
                     {Math.floor(meetingDuration / 60000)} 分钟。
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {timeConflict && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    该时间段与已有会议冲突。每场会议之间至少需要间隔15分钟。
                   </AlertDescription>
                 </Alert>
               )}
@@ -333,37 +312,37 @@ export function GenerateMeetingDialog({
               )}
 
               <div className="space-y-2">
-                <Label>关联演讲稿（可选）</Label>
-                {loadingSpeechScripts ? (
+                <Label>关联播客（可选）</Label>
+                {loadingPodcasts ? (
                   <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    加载演讲稿中...
+                    加载播客中...
                   </div>
-                ) : completedSpeechScripts.length === 0 ? (
+                ) : completedPodcasts.length === 0 ? (
                   <p className="text-sm text-muted-foreground p-4">
-                    暂无已完成的演讲稿。请先创建并完成演讲稿。
+                    暂无已完成的播客。请先创建并完成播客。
                   </p>
                 ) : (
                   <div className="rounded-md border p-4 space-y-2 max-h-[200px] overflow-y-auto">
-                    {completedSpeechScripts.map((script) => (
+                    {completedPodcasts.map((podcast) => (
                       <div
-                        key={script.id}
+                        key={podcast.id}
                         className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded"
                       >
                         <Checkbox
-                          id={`speech-${script.id}`}
-                          checked={selectedSpeechIds.includes(script.id)}
-                          onCheckedChange={() => handleSpeechScriptToggle(script.id)}
+                          id={`podcast-${podcast.id}`}
+                          checked={selectedPodcastIds.includes(podcast.id)}
+                          onCheckedChange={() => handlePodcastToggle(podcast.id)}
                           disabled={isSubmitting}
                         />
                         <Label
-                          htmlFor={`speech-${script.id}`}
+                          htmlFor={`podcast-${podcast.id}`}
                           className="flex-1 cursor-pointer text-sm font-normal"
                         >
-                          {script.name}
-                          {script.description && (
-                            <span className="text-muted-foreground ml-2">
-                              - {script.description}
+                          {podcast.name}
+                          {podcast.briefing && (
+                            <span className="text-muted-foreground ml-2 text-xs truncate">
+                              - {podcast.briefing.substring(0, 50)}{podcast.briefing.length > 50 ? '...' : ''}
                             </span>
                           )}
                         </Label>
@@ -372,7 +351,7 @@ export function GenerateMeetingDialog({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  选择要关联到此会议的演讲稿。只有已完成的演讲稿才会显示。
+                  选择要关联到此会议的播客。只有已完成的播客才会显示。
                 </p>
               </div>
             </div>

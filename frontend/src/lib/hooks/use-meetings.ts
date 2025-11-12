@@ -16,9 +16,9 @@ export function useMeetings() {
 
   const meetings = useMemo(() => query.data ?? [], [query.data])
 
-  // 按时间排序，最新的在前
+  // 按时间排序，最早的在前
   const sortedMeetings = useMemo(() => {
-    return [...meetings].sort((a, b) => b.start_time - a.start_time)
+    return [...meetings].sort((a, b) => a.start_time - b.start_time)
   }, [meetings])
 
   return {

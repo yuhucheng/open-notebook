@@ -105,7 +105,7 @@ export function MeetingsTab() {
           <div>
             <h3 className="text-lg font-semibold leading-tight">所有会议</h3>
             <p className="text-sm text-muted-foreground">
-              按时间倒序排列的会议记录。
+              按开始时间从早到晚排列的会议记录。
             </p>
           </div>
           <Separator />
