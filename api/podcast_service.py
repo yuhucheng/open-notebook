@@ -247,9 +247,9 @@ class PodcastService:
                     # clips directory is at the episode level, not audio level
                     episode_dir = audio_path.parent.parent if audio_path.parent.name == "audio" else audio_path.parent
                     clip_path_obj = episode_dir / "clips" / f"{clip_filename}"
-                    if clip_path_obj.exists():
-                        clip_path = str(clip_path_obj)
-                        clip_url = f"/api/podcasts/episodes/{episode_id}/audio/{clip_filename}"
+                    clip_path = str(clip_path_obj)
+                    clip_url = f"/api/podcasts/episodes/{episode_id}/audio/{clip_filename}"
+                    
 
                 # Construct PPT image URL
                 ppt_image_url = None

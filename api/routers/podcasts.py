@@ -263,14 +263,21 @@ async def stream_podcast_episode_clip_audio(episode_id: str, clip_filename: str)
         # clips directory is at the episode level, not audio level
         episode_dir = audio_path.parent.parent if audio_path.parent.name == "audio" else audio_path.parent
         clip_path = episode_dir / "clips" / f"{clip_filename}"
-
-        if not clip_path.exists():
-            raise HTTPException(status_code=404, detail="Audio clip file not found on disk")
-
+        # 转换为字符串并移除路径前缀（如果需要）
+        clip_path_str = str(clip_path).replace('/Users/janmee/workspace/github/open-notebook/', '')
+        print(f"clip_path_str: {clip_path_str}")
+        # 先检查文件是否存在（在转换为字符串之前）
+        # if not clip_path.exists():
+            # raise HTTPException(status_code=404, detail="Audio clip file not found on disk")
+        
+        # 保存文件名（在转换为字符串之前）
+        clip_filename_for_response = clip_path.name
+        
+    
         return FileResponse(
-            clip_path,
+            clip_path_str,
             media_type="audio/mpeg",
-            filename=clip_path.name,
+            filename=clip_filename_for_response,
         )
 
     except HTTPException:

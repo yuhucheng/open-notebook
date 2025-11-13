@@ -16,6 +16,7 @@ from open_notebook.database.repository import repo_query
 from open_notebook.domain import meeting_speech
 from open_notebook.domain.meeting_speech import MeetingSpeech
 from api.models import MeetingCreate, MeetingResponse
+from api.podcast_service import PodcastService
 
 class MeetingService:
     """会议服务层"""
@@ -176,6 +177,17 @@ class MeetingService:
             # 启动异步任务获取会议详情得到会议号插入
             asyncio.create_task(MeetingService.save_meeting_code(meeting_no))
 
+            # 获取每个 postcat_id 对应的 podcast episode 数据
+            podcast_episode_list = []
+            for postcat_id in request.postcat_ids:
+                try:
+                    podcast_episode = await PodcastService.get_episode_slides_and_clips(postcat_id)
+                    if podcast_episode:
+                        # 将 Pydantic 模型对象转换为字典列表
+                        podcast_episode_dicts = [item.model_dump() for item in podcast_episode]
+                        podcast_episode_list.extend(podcast_episode_dicts)
+                except Exception as e:
+                    logger.warning(f"Failed to get podcast episode for postcat_id {postcat_id}: {e}")
 
             return {
                 "id": meeting_no,
@@ -184,6 +196,7 @@ class MeetingService:
                 "end_time": request.end_time,
                 "postcat_ids": request.postcat_ids,
                 "meeting_code": meeting_code,
+                "podcast_episode": podcast_episode_list,
             }
 
         except httpx.HTTPStatusError as e:
@@ -263,7 +276,7 @@ class MeetingService:
             for meeting_data in api_response_data:
                 meeting_info = meeting_data.get("meeting", {})
                 meeting_no = meeting_info.get("meetingNo") or ""
-                if meeting_info.get("status") != "BEFORE" :
+                if meeting_info.get("status") != "BEFORE" and meeting_info.get("status") != "DURING" :
                     continue
                 response_meetings.append({
                     "id": meeting_no,
@@ -271,7 +284,8 @@ class MeetingService:
                     "start_time": meeting_info.get("beginTime") or 0,
                     "end_time": meeting_info.get("endTime") or 0,
                     "meeting_code": meeting_info.get("meetingCode") or meeting_no,  # 如果没有 meetingCode，使用 meeting_no
-                    "postcat_ids": []
+                    "postcat_ids": [],
+                    "podcast_episode": []
                 })
 
             for meeting in response_meetings:
@@ -280,6 +294,11 @@ class MeetingService:
                     postcat_id = speech.get("postcat_id")
                     if postcat_id:
                         meeting["postcat_ids"].append(postcat_id)
+                        podcast_episode = await PodcastService.get_episode_slides_and_clips(postcat_id)
+                        if podcast_episode:
+                            # 将 Pydantic 模型对象转换为字典列表
+                            podcast_episode_dicts = [item.model_dump() for item in podcast_episode]
+                            meeting["podcast_episode"].extend(podcast_episode_dicts)
                     if speech.get("meeting_code"):
                         meeting["meeting_code"] = speech.get("meeting_code")
 
