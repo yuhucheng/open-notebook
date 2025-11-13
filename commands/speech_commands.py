@@ -98,7 +98,7 @@ async def extract_ppt_pages(source_id: str, output_dir: Path) -> List[Path]:
         raise
 
 
-async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], auxiliary_content: str = "") -> List[Dict[str, Any]]:
+async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], auxiliary_content: str = "", description: str = "") -> List[Dict[str, Any]]:
     """
     为所有页面一次性生成大纲和讲稿，确保演讲的连续性
     使用AI模型生成实际内容
@@ -159,6 +159,7 @@ async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], 
             "4. 语言要生动、自然，适合口头表达 "
             f"5. 必须为所有输入的页面生成对应的内容，输出页数必须与输入页数完全一致，不能少于或多于输入的页面数量 "
             f"6. 如果提供了辅助内容，请适当融入讲稿中 {f'辅助内容：{auxiliary_content}' if auxiliary_content else ''} "
+            f"7. 如果提供了演讲稿描述，请按照描述风格来生成演讲稿 {f'演讲稿描述：{description}' if description else ''} "
             "请以JSON格式返回结果，必须返回完整的JSON结构，不能被截断，而且你需要检查最终返回的数据是否满足JSON格式，"
             "不能生成非JSON字符串的内容（如```json```），格式如下："
             "{'pages': [{'page_number': 1, 'title': '页面标题', 'outline': '页面大纲内容', 'script': '演讲稿内容'}, ...]}"
@@ -242,7 +243,7 @@ async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], 
                 "outline": page_data.get("outline", f"第{page_num}页内容概述"),
                 "script": page_data.get("script", f"第{page_num}页的演讲稿内容"),
             })
-
+        logger.info(f"Outlines data: {outlines_data}")
         return outlines_data
 
     except Exception as e:
@@ -273,9 +274,10 @@ async def get_auxiliary_content(auxiliary_sources: List[str], auxiliary_notebook
             )
             if source_result:
                 source_data = source_result[0]
-                content = source_data.get("content", "")
+                title = source_data.get("title", "")
+                content = source_data.get("full_text", "")
                 if content:
-                    auxiliary_content.append(f"Source: {content[:500]}...")
+                    auxiliary_content.append(f"Source: {title}\nContent: {content[:1000]}...")
         except Exception as e:
             logger.warning(f"Failed to get auxiliary source content: {e}")
 
@@ -329,7 +331,7 @@ async def generate_speech_script_command(
 
         # 5. 为所有页面一次性生成大纲和讲稿，确保演讲连续性
         logger.info(f"Generating content for all {len(image_paths)} pages at once")
-        outlines_data = await generate_outlines_from_pages(input_data.source_id, image_paths, auxiliary_content)
+        outlines_data = await generate_outlines_from_pages(input_data.source_id, image_paths, auxiliary_content, speech_script.description)
 
         # 6. 创建大纲讲稿记录
         outline_sections = []
