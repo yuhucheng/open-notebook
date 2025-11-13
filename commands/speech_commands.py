@@ -13,6 +13,7 @@ from surreal_commands import CommandInput, CommandOutput, command
 from open_notebook.config import DATA_FOLDER
 from open_notebook.database.repository import repo_query, ensure_record_id
 from open_notebook.domain.speech_script import SpeechScript, OutlineSection
+from open_notebook.domain.notebook import Source
 from api.transformations_service import transformations_service
 from api.models_service import models_service
 
@@ -270,14 +271,27 @@ async def get_auxiliary_content(auxiliary_sources: List[str], auxiliary_notebook
     # 获取辅助source内容
     for source_id in auxiliary_sources:
         try:
-            source_result = await repo_query(
-                "SELECT * FROM source WHERE id = $source_id",
-                {"source_id": ensure_record_id(source_id)}
-            )
+            source_result = await Source.get(source_id)
+            
             if source_result:
                 source_data = source_result[0]
                 title = source_data.get("title", "")
-                content = source_data.get("full_text", "")
+
+                # 优先使用insights内容，如果没有insights则使用full_text
+                insights =  await source_result.get_insights()
+                if insights:
+                    # 如果有insights，提取所有insights的内容
+                    insights_content = []
+                    for insight in insights:
+                        insights_content.append(insight["content"])
+
+                    if insights_content:
+                        content = " ".join(insights_content)
+                    else:
+                        content = source_data.get("full_text", "")
+                else:
+                    content = source_data.get("full_text", "")
+
                 if content:
                     content_item = f"Source: {title}\nContent: {content[:10000]}..."
                     # 检查添加后是否超过长度限制

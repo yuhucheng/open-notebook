@@ -249,8 +249,6 @@ class PodcastService:
                     clip_path_obj = episode_dir / "clips" / f"{clip_filename}"
                     clip_path = str(clip_path_obj)
                     clip_url = f"/api/podcasts/episodes/{episode_id}/audio/{clip_filename}"
-                    
-
                 # Construct PPT image URL
                 ppt_image_url = None
                 if section.image_path:

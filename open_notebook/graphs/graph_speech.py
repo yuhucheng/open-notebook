@@ -1,13 +1,16 @@
+import asyncio
 import json
+import os
+import uuid
 from pathlib import Path
 from typing import Dict, Optional, List, Union
 
+from esperanto import AIFactory
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
+from moviepy import AudioFileClip, concatenate_audioclips
 
 from podcast_creator.nodes import (
-    combine_audio_node,
-    generate_all_audio_node,
     route_audio_generation,
 )
 from podcast_creator.speakers import load_speaker_config
@@ -15,11 +18,15 @@ from podcast_creator.episodes import load_episode_config
 from podcast_creator.state import PodcastState
 from podcast_creator.core import Outline, Segment, Dialogue, Transcript
 
+from open_notebook.config import DATA_FOLDER
+
 # Import speech script domain models
 try:
     from open_notebook.domain.speech_script import SpeechScript, OutlineSection
+    SPEECH_SCRIPT_AVAILABLE = True
 except ImportError:
     logger.warning("Speech script domain models not available, speech graph functionality will be limited")
+    SPEECH_SCRIPT_AVAILABLE = False
 
 
 class PodcastSpeechState(PodcastState):
@@ -27,9 +34,263 @@ class PodcastSpeechState(PodcastState):
     speech_script_id: str
 
 
-async def generate_speech_outline_node(state: PodcastSpeechState, config) -> Dict:
+async def combine_audio_files(
+    audio_dir: Union[Path, str], final_filename: str, final_output_dir: Union[Path, str]
+) -> Dict:
+    """
+    Combines multiple audio files into a single MP3 file using moviepy.
+    Expects 'audio_segments_data' in inputs: a list of strings, where each string is a path to an audio file.
+    Also expects 'final_filename' in inputs: a string for the desired output filename (e.g., "podcast_episode.mp3").
+    Example input: {
+        "audio_segments_data": ["path/to/audio1.mp3", "path/to/audio2.mp3"],
+        "final_filename": "my_podcast.mp3"
+    }
+    Output: {"combined_audio_path": "podcasts/episodes/episode_name/audio/my_podcast.mp3"}
+    """
+    logger.info("[Custom Audio Function] combine_audio_files called.")
+    if isinstance(audio_dir, str):
+        audio_dir = Path(audio_dir)
+    if isinstance(final_output_dir, str):
+        final_output_dir = Path(final_output_dir)
+
+    list_of_audio_paths = sorted(audio_dir.glob("*.mp3"))
+    output_filename_from_input = final_filename
+
+    logger.debug(f"Found {len(list_of_audio_paths)} audio files to combine")
+
+    if not list_of_audio_paths:
+        logger.warning(
+            "combine_audio_files: No audio segment data (list of paths) provided."
+        )
+        return {"combined_audio_path": "ERROR: No audio segment data"}
+
+    if not isinstance(list_of_audio_paths, list):
+        logger.error(
+            "combine_audio_files: 'audio_segments_data' is not a list. Received: {type(list_of_audio_paths)}"
+        )
+        return {
+            "combined_audio_path": "ERROR: audio_segments_data must be a list of file paths"
+        }
+
+    clips = []
+    valid_clips = []
+    for i, file_path in enumerate(list_of_audio_paths):
+        if not isinstance(file_path, Path):
+            logger.warning(
+                "combine_audio_files: Item {i} in audio_segments_data is not a string path: {file_path}. Skipping."
+            )
+            continue
+
+        try:
+            if file_path.exists() and file_path.is_file():
+                clips.append(AudioFileClip(str(file_path)))
+                valid_clips.append(clips[-1])  # Keep track of valid clips for later
+            else:
+                logger.error(
+                    "combine_audio_files: File not found or not a file: {file_path}"
+                )
+        except Exception as e:
+            logger.error(
+                "combine_audio_files: Error loading audio clip {file_path}: {e}"
+            )
+
+    if not clips:
+        logger.error("combine_audio_files: No valid audio clips could be loaded.")
+        return {"combined_audio_path": "ERROR: No valid clips"}
+
+    try:
+        # Ensure all clips are closed after concatenation, even if it fails during the process.
+        # MoviePy's concatenate_audioclips might not close source clips if it errors out mid-way.
+        final_clip = concatenate_audioclips(clips)
+    except Exception as e:
+        logger.error(f"Error during concatenate_audioclips: {e}")
+        for clip_obj in clips:
+            try:
+                clip_obj.close()
+            except Exception as close_exc:
+                logger.debug(f"Error closing clip during error handling: {close_exc}")
+        return {"combined_audio_path": f"ERROR: Concatenation failed - {e}"}
+
+    output_dir = final_output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Use the filename from input if provided, otherwise generate one.
+    if output_filename_from_input and isinstance(output_filename_from_input, str):
+        # Basic sanitization for filename (optional, depending on how robust it needs to be)
+        # For now, assume it's a simple filename like 'episode.mp3'
+        output_filename = Path(
+            output_filename_from_input
+        ).name  # Use only the filename part
+        if not output_filename.endswith(".mp3"):
+            output_filename += ".mp3"  # Ensure .mp3 extension
+    else:
+        output_filename = f"combined_{uuid.uuid4().hex}.mp3"
+        logger.warning(
+            f"'final_filename' not provided or invalid in inputs. Using generated name: {output_filename}"
+        )
+
+    output_path = output_dir / output_filename
+
+    try:
+        final_clip.write_audiofile(str(output_path), codec="mp3")
+        logger.info(f"Successfully combined audio to: {output_path}")
+
+        try:
+            relative_path = str(output_path.relative_to(""))
+            logger.info(f"Combined audio relative path: {relative_path}")
+            return {
+                "combined_audio_path": relative_path,
+                "original_segments_count": len(valid_clips),
+                "total_duration_seconds": final_clip.duration,
+            }
+        except ValueError:
+            # 如果无法计算相对路径（例如路径不在 DATA_FOLDER 下），返回绝对路径
+            logger.warning(f"Could not create relative path for {output_path}, using absolute path")
+            return {
+                "combined_audio_path": str(output_path.resolve()),
+                "original_segments_count": len(valid_clips),
+                "total_duration_seconds": final_clip.duration,
+            }
+    except Exception as e:
+        logger.error(f"Error writing final audio file {output_path}: {e}")
+        return {"combined_audio_path": f"ERROR: Failed to write output audio - {e}"}
+    finally:
+        final_clip.close()  # Close the final concatenated clip
+        for clip_obj in clips:  # Ensure all source clips are closed
+            try:
+                clip_obj.close()
+            except Exception as close_exc:
+                logger.debug(f"Error closing source clip: {close_exc}")
+
+
+async def custom_combine_audio_node(state, config) -> Dict:
+    """自定义音频合并节点，返回相对路径"""
+    logger.info("Starting custom audio combination")
+
+    clips_dir = state["output_dir"] / "clips"
+    audio_dir = state["output_dir"] / "audio"
+
+    # Combine audio files using custom function
+    result = await combine_audio_files(
+        clips_dir, f"{state['episode_name']}.mp3", audio_dir
+    )
+
+    # 处理结果
+    if result["combined_audio_path"].startswith("ERROR"):
+        logger.error(f"Audio combination failed: {result['combined_audio_path']}")
+        return {"final_output_file_path": None}
+
+    final_path = Path(result["combined_audio_path"])
+
+    logger.info(f"Custom combined audio saved to: {final_path}")
+
+    return {"final_output_file_path": final_path}
+
+
+async def custom_generate_single_audio_clip(dialogue_info: Dict) -> Path:
+    """生成单个音频片段（自定义实现）"""
+    dialogue = dialogue_info["dialogue"]
+    index = dialogue_info["index"]
+    output_dir = dialogue_info["output_dir"]
+    tts_provider = dialogue_info["tts_provider"]
+    tts_model_name = dialogue_info["tts_model"]
+    voices = dialogue_info["voices"]
+    speech_speed = dialogue_info.get("speech_speed", 1.0)
+
+    logger.info(f"[Custom Audio] Generating audio clip {index:04d} for {dialogue.speaker}")
+
+    # 创建 clips 目录
+    clips_dir = output_dir / "clips"
+    clips_dir.mkdir(exist_ok=True, parents=True)
+
+    # 生成文件名
+    filename = f"{index:04d}.mp3"
+    clip_path = clips_dir / filename
+
+    # 创建 TTS 模型
+    tts_model = AIFactory.create_text_to_speech(tts_provider, tts_model_name)
+
+    # 生成音频
+    await tts_model.agenerate_speech(
+        text=dialogue.dialogue, voice=voices[dialogue.speaker], output_file=clip_path, speed=speech_speed
+    )
+
+    logger.info(f"[Custom Audio] Generated audio clip: {clip_path}")
+
+    return clip_path
+
+
+async def custom_generate_all_audio_node(state, config) -> Dict:
+    """生成所有音频片段（自定义实现）"""
+    transcript = state["transcript"]
+    output_dir = state["output_dir"]
+    total_segments = len(transcript)
+
+    # 从环境变量获取批次大小，默认为 1
+    batch_size = int(os.getenv("TTS_BATCH_SIZE", "1"))
+    logger.info(f"[Custom Audio] Using TTS batch size: {batch_size}")
+
+    assert state.get("speaker_profile") is not None, "speaker_profile must be provided"
+
+    # 获取 TTS 配置
+    speaker_profile = state["speaker_profile"]
+    tts_provider = speaker_profile.tts_provider
+    tts_model = speaker_profile.tts_model
+    voices = speaker_profile.get_voice_mapping()
+    speech_speed = getattr(speaker_profile, 'speech_speed', 1.0)
+
+    logger.info(
+        f"[Custom Audio] Generating {total_segments} audio clips in sequential batches of {batch_size}"
+    )
+
+    all_clip_paths = []
+
+    # 按批次顺序处理
+    for batch_start in range(0, total_segments, batch_size):
+        batch_end = min(batch_start + batch_size, total_segments)
+        batch_number = batch_start // batch_size + 1
+        total_batches = (total_segments + batch_size - 1) // batch_size
+
+        logger.info(
+            f"[Custom Audio] Processing batch {batch_number}/{total_batches} (clips {batch_start}-{batch_end - 1})"
+        )
+
+        # 创建此批次的任务
+        batch_tasks = []
+        for i in range(batch_start, batch_end):
+            dialogue_info = {
+                "dialogue": transcript[i],
+                "index": i,
+                "output_dir": output_dir,
+                "tts_provider": tts_provider,
+                "tts_model": tts_model,
+                "voices": voices,
+                "speech_speed": speech_speed,
+            }
+            task = custom_generate_single_audio_clip(dialogue_info)
+            batch_tasks.append(task)
+
+        # 并发处理此批次（但在下一批次前等待）
+        batch_clip_paths = await asyncio.gather(*batch_tasks)
+        all_clip_paths.extend(batch_clip_paths)
+
+        logger.info(f"[Custom Audio] Completed batch {batch_number}/{total_batches}")
+
+        # 在批次间添加小延迟以确保 API 限制安全
+        if batch_end < total_segments:
+            await asyncio.sleep(1)
+
+    logger.info(f"[Custom Audio] Generated all {len(all_clip_paths)} audio clips")
+
+    return {"audio_clips": all_clip_paths}
+
+
+async def custom_generate_speech_outline_node(state, config) -> Dict:
     """Generate outline from speech script outline sections"""
-    logger.info("Starting speech outline generation")
+    if not SPEECH_SCRIPT_AVAILABLE:
+        raise ImportError("Speech script functionality not available")
+
+    logger.info("[Custom Speech] Starting speech outline generation")
 
     speech_script_id = state["speech_script_id"]
 
@@ -55,14 +316,17 @@ async def generate_speech_outline_node(state: PodcastSpeechState, config) -> Dic
 
     outline = Outline(segments=segments)
 
-    logger.info(f"Generated speech outline with {len(segments)} segments from speech script")
+    logger.info(f"[Custom Speech] Generated speech outline with {len(segments)} segments from speech script")
 
     return {"outline": outline}
 
 
-async def generate_speech_transcript_node(state: PodcastSpeechState, config) -> Dict:
+async def custom_generate_speech_transcript_node(state, config) -> Dict:
     """Generate transcript from speech script outline sections"""
-    logger.info("Starting speech transcript generation")
+    if not SPEECH_SCRIPT_AVAILABLE:
+        raise ImportError("Speech script functionality not available")
+
+    logger.info("[Custom Speech] Starting speech transcript generation")
 
     assert state.get("outline") is not None, "outline must be provided"
     assert state.get("speaker_profile") is not None, "speaker_profile must be provided"
@@ -89,7 +353,7 @@ async def generate_speech_transcript_node(state: PodcastSpeechState, config) -> 
         # Use the script content as dialogue
         dialogue_text = section.script.strip()
         if not dialogue_text:
-            logger.warning(f"Empty script content for section {section.title}, skipping")
+            logger.warning(f"[Custom Speech] Empty script content for section {section.title}, skipping")
             continue
 
         # For speech scripts, we'll use the first available speaker
@@ -102,9 +366,9 @@ async def generate_speech_transcript_node(state: PodcastSpeechState, config) -> 
         )
         transcript.append(dialogue)
 
-        logger.info(f"Added dialogue segment {i+1} for section: {section.title}")
+        logger.info(f"[Custom Speech] Added dialogue segment {i+1} for section: {section.title}")
 
-    logger.info(f"Generated speech transcript with {len(transcript)} dialogue segments")
+    logger.info(f"[Custom Speech] Generated speech transcript with {len(transcript)} dialogue segments")
 
     return {"transcript": transcript}
 
@@ -115,10 +379,10 @@ logger.info("Creating speech-based podcast generation graph")
 speech_workflow = StateGraph(PodcastSpeechState)
 
 # Add nodes - use speech-specific nodes for outline and transcript generation
-speech_workflow.add_node("generate_outline", generate_speech_outline_node)
-speech_workflow.add_node("generate_transcript", generate_speech_transcript_node)
-speech_workflow.add_node("generate_all_audio", generate_all_audio_node)
-speech_workflow.add_node("combine_audio", combine_audio_node)
+speech_workflow.add_node("generate_outline", custom_generate_speech_outline_node)
+speech_workflow.add_node("generate_transcript", custom_generate_speech_transcript_node)
+speech_workflow.add_node("generate_all_audio", custom_generate_all_audio_node)
+speech_workflow.add_node("combine_audio", custom_combine_audio_node)
 
 # Define edges - same flow as original graph
 speech_workflow.add_edge(START, "generate_outline")
