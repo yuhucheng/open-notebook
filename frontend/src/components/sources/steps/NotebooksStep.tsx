@@ -3,6 +3,7 @@
 import { FormSection } from "@/components/ui/form-section"
 import { CheckboxList } from "@/components/ui/checkbox-list"
 import { NotebookResponse } from "@/lib/types/api"
+import { useTranslation } from "react-i18next"
 
 interface NotebooksStepProps {
   notebooks: NotebookResponse[]
@@ -17,6 +18,7 @@ export function NotebooksStep({
   onToggleNotebook,
   loading = false
 }: NotebooksStepProps) {
+  const { t } = useTranslation()
   const notebookItems = notebooks.map((notebook) => ({
     id: notebook.id,
     title: notebook.name,
@@ -26,15 +28,15 @@ export function NotebooksStep({
   return (
     <div className="space-y-6">
       <FormSection
-        title="Select Notebooks (optional)"
-        description="Choose which notebooks should contain this source. You can select multiple notebooks or leave this empty."
+        title={t('sources.addSourceDialog.notebooks.title')}
+        description={t('sources.addSourceDialog.notebooks.description')}
       >
         <CheckboxList
           items={notebookItems}
           selectedIds={selectedNotebooks}
           onToggle={onToggleNotebook}
           loading={loading}
-          emptyMessage="No notebooks found."
+          emptyMessage={t('sources.addSourceDialog.notebooks.emptyMessage')}
         />
       </FormSection>
     </div>

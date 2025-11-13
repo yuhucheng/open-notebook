@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { LoaderIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogContent,
@@ -23,57 +24,12 @@ import { useCreateSource } from '@/lib/hooks/use-sources'
 import { useSettings } from '@/lib/hooks/use-settings'
 import { CreateSourceRequest } from '@/lib/types/api'
 
-const createSourceSchema = z.object({
-  type: z.enum(['link', 'upload', 'text']),
-  title: z.string().optional(),
-  url: z.string().optional(),
-  content: z.string().optional(),
-  file: z.any().optional(),
-  notebooks: z.array(z.string()).optional(),
-  transformations: z.array(z.string()).optional(),
-  embed: z.boolean(),
-  async_processing: z.boolean(),
-}).refine((data) => {
-  if (data.type === 'link') {
-    return !!data.url && data.url.trim() !== ''
-  }
-  if (data.type === 'text') {
-    return !!data.content && data.content.trim() !== ''
-  }
-  if (data.type === 'upload') {
-    if (data.file instanceof FileList) {
-      return data.file.length > 0
-    }
-    return !!data.file
-  }
-  return true
-}, {
-  message: 'Please provide the required content for the selected source type',
-  path: ['type'],
-}).refine((data) => {
-  // Make title mandatory for text sources
-  if (data.type === 'text') {
-    return !!data.title && data.title.trim() !== ''
-  }
-  return true
-}, {
-  message: 'Title is required for text sources',
-  path: ['title'],
-})
-
-type CreateSourceFormData = z.infer<typeof createSourceSchema>
-
 interface AddSourceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   defaultNotebookId?: string
 }
 
-const WIZARD_STEPS: readonly WizardStep[] = [
-  { number: 1, title: 'Source & Content', description: 'Choose type and add content' },
-  { number: 2, title: 'Organization', description: 'Select notebooks' },
-  { number: 3, title: 'Processing', description: 'Choose transformations and options' },
-]
 
 interface ProcessingState {
   message: string
@@ -85,6 +41,52 @@ export function AddSourceDialog({
   onOpenChange, 
   defaultNotebookId 
 }: AddSourceDialogProps) {
+  const { t } = useTranslation()
+  
+  const createSourceSchema = z.object({
+    type: z.enum(['link', 'upload', 'text']),
+    title: z.string().optional(),
+    url: z.string().optional(),
+    content: z.string().optional(),
+    file: z.any().optional(),
+    notebooks: z.array(z.string()).optional(),
+    transformations: z.array(z.string()).optional(),
+    embed: z.boolean(),
+    async_processing: z.boolean(),
+  }).refine((data) => {
+    if (data.type === 'link') {
+      return !!data.url && data.url.trim() !== ''
+    }
+    if (data.type === 'text') {
+      return !!data.content && data.content.trim() !== ''
+    }
+    if (data.type === 'upload') {
+      if (data.file instanceof FileList) {
+        return data.file.length > 0
+      }
+      return !!data.file
+    }
+    return true
+  }, {
+    message: t('sources.addSourceDialog.sourceType.typeRequired'),
+    path: ['type'],
+  }).refine((data) => {
+    // Make title mandatory for text sources
+    if (data.type === 'text') {
+      return !!data.title && data.title.trim() !== ''
+    }
+    return true
+  }, {
+    message: t('sources.addSourceDialog.sourceType.titleRequiredForText'),
+    path: ['title'],
+  })
+  
+  const WIZARD_STEPS: readonly WizardStep[] = [
+    { number: 1, title: t('sources.addSourceDialog.wizardSteps.step1.title'), description: t('sources.addSourceDialog.wizardSteps.step1.description') },
+    { number: 2, title: t('sources.addSourceDialog.wizardSteps.step2.title'), description: t('sources.addSourceDialog.wizardSteps.step2.description') },
+    { number: 3, title: t('sources.addSourceDialog.wizardSteps.step3.title'), description: t('sources.addSourceDialog.wizardSteps.step3.description') },
+  ]
+  
   // Simplified state management
   const [currentStep, setCurrentStep] = useState(1)
   const [processing, setProcessing] = useState(false)
@@ -227,7 +229,7 @@ export function AddSourceDialog({
   const onSubmit = async (data: CreateSourceFormData) => {
     try {
       setProcessing(true)
-      setProcessingStatus({ message: 'Submitting source for processing...' })
+      setProcessingStatus({ message: t('sources.addSourceDialog.submitting') })
 
       const createRequest: CreateSourceRequest = {
         type: data.type,
@@ -255,7 +257,7 @@ export function AddSourceDialog({
     } catch (error) {
       console.error('Error creating source:', error)
       setProcessingStatus({ 
-        message: 'Error creating source. Please try again.',
+        message: t('sources.addSourceDialog.errorCreating'),
       })
       timeoutRef.current = setTimeout(() => {
         setProcessing(false)
@@ -297,9 +299,9 @@ export function AddSourceDialog({
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-[500px]" showCloseButton={true}>
           <DialogHeader>
-            <DialogTitle>Processing Source</DialogTitle>
+            <DialogTitle>{t('sources.addSourceDialog.processingTitle')}</DialogTitle>
             <DialogDescription>
-              Your source is being processed. This may take a few moments.
+              {t('sources.addSourceDialog.processingDescription')}
             </DialogDescription>
           </DialogHeader>
           
@@ -307,7 +309,7 @@ export function AddSourceDialog({
             <div className="flex items-center gap-3">
               <LoaderIcon className="h-5 w-5 animate-spin text-primary" />
               <span className="text-sm text-muted-foreground">
-                {processingStatus?.message || 'Processing...'}
+                {processingStatus?.message || t('sources.addSourceDialog.processing')}
               </span>
             </div>
             
@@ -331,9 +333,9 @@ export function AddSourceDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[700px] p-0">
         <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle>Add New Source</DialogTitle>
+          <DialogTitle>{t('sources.addSourceDialog.title')}</DialogTitle>
           <DialogDescription>
-            Add content from links, uploads, or text to your notebooks.
+            {t('sources.addSourceDialog.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -383,7 +385,7 @@ export function AddSourceDialog({
               variant="outline" 
               onClick={handleClose}
             >
-              Cancel
+              {t('sources.addSourceDialog.buttons.cancel')}
             </Button>
 
             <div className="flex gap-2">
@@ -393,7 +395,7 @@ export function AddSourceDialog({
                   variant="outline"
                   onClick={handlePrevStep}
                 >
-                  Back
+                  {t('sources.addSourceDialog.buttons.back')}
                 </Button>
               )}
 
@@ -405,7 +407,7 @@ export function AddSourceDialog({
                   onClick={(e) => handleNextStep(e)}
                   disabled={!currentStepValid}
                 >
-                  Next
+                  {t('sources.addSourceDialog.buttons.next')}
                 </Button>
               )}
 
@@ -415,7 +417,7 @@ export function AddSourceDialog({
                 disabled={!currentStepValid || createSource.isPending}
                 className="min-w-[120px]"
               >
-                {createSource.isPending ? 'Creating...' : 'Done'}
+                {createSource.isPending ? t('sources.addSourceDialog.buttons.creating') : t('sources.addSourceDialog.buttons.done')}
               </Button>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 
 import { useNotebooks } from '@/lib/hooks/use-notebooks'
 import { useSpeechScripts } from '@/lib/hooks/use-speech-scripts'
@@ -32,11 +33,6 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-
-const SOURCE_MODES = [
-  { value: 'insights', label: 'Summary' },
-  { value: 'full', label: 'Full content' },
-] as const
 
 type SourceMode = 'off' | 'insights' | 'full'
 
@@ -78,8 +74,14 @@ interface GeneratePodcastDialogProps {
 }
 
 export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDialogProps) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  
+  const SOURCE_MODES = [
+    { value: 'insights', label: t('podcasts.generatePodcastDialog.summaryMode') },
+    { value: 'full', label: t('podcasts.generatePodcastDialog.fullContent') },
+  ] as const
   const [expandedNotebooks, setExpandedNotebooks] = useState<string[]>([])
   const [selections, setSelections] = useState<Record<string, NotebookSelection>>({})
   const [episodeProfileId, setEpisodeProfileId] = useState<string>('')
@@ -444,8 +446,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
   const handleSubmit = useCallback(async () => {
     if (!selectedEpisodeProfile) {
       toast({
-        title: 'Episode profile required',
-        description: 'Select an episode profile before generating a podcast.',
+        title: t('podcasts.generatePodcastDialog.episodeProfileRequired'),
+        description: t('podcasts.generatePodcastDialog.episodeProfileRequiredDesc'),
         variant: 'destructive',
       })
       return
@@ -453,8 +455,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
 
     if (!episodeName.trim()) {
       toast({
-        title: 'Episode name required',
-        description: 'Provide a name for the episode.',
+        title: t('podcasts.generatePodcastDialog.episodeNameRequired'),
+        description: t('podcasts.generatePodcastDialog.episodeNameRequiredDesc'),
         variant: 'destructive',
       })
       return
@@ -468,8 +470,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
       )
       if (!hasAnySelections) {
         toast({
-          title: 'Add context',
-          description: 'Select at least one source or note to include in the episode.',
+          title: t('podcasts.generatePodcastDialog.addContext'),
+          description: t('podcasts.generatePodcastDialog.addContextDesc'),
           variant: 'destructive',
         })
         return
@@ -478,8 +480,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
       // Validate speech script selection
       if (!selectedSpeechScriptId) {
         toast({
-          title: 'Select speech script',
-          description: 'Select a speech script to use for podcast generation.',
+          title: t('podcasts.generatePodcastDialog.selectSpeechScript'),
+          description: t('podcasts.generatePodcastDialog.selectSpeechScriptDesc'),
           variant: 'destructive',
         })
         return
@@ -520,8 +522,8 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
     } catch (error) {
       console.error('Failed to generate podcast', error)
       toast({
-        title: 'Podcast generation failed',
-        description: error instanceof Error ? error.message : 'Please try again later.',
+        title: t('podcasts.generatePodcastDialog.generationFailed'),
+        description: error instanceof Error ? error.message : t('podcasts.generatePodcastDialog.generationFailedDesc'),
         variant: 'destructive',
       })
     } finally {
@@ -538,6 +540,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
     selectedEpisodeProfile,
     selectedSpeechScriptId,
     selections,
+    t,
     toast,
   ])
 
@@ -552,9 +555,9 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
     }}>
       <DialogContent className="w-[80vw] max-w-[1080px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Generate Podcast Episode</DialogTitle>
+          <DialogTitle>{t('podcasts.generatePodcastDialog.title')}</DialogTitle>
           <DialogDescription>
-            Select the content to include and configure the episode details before generating a new podcast episode.
+            {t('podcasts.generatePodcastDialog.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -564,10 +567,10 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
             <div className="space-y-3">
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Content Source
+                  {t('podcasts.generatePodcastDialog.contentSource')}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Choose how to provide content for the podcast episode.
+                  {t('podcasts.generatePodcastDialog.contentSourceDesc')}
                 </p>
               </div>
               <RadioGroup
@@ -578,13 +581,13 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="content" id="content-mode" />
                   <Label htmlFor="content-mode" className="text-sm">
-                    Select Content
+                    {t('podcasts.generatePodcastDialog.selectContent')}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="speech_script" id="speech-script-mode" />
                   <Label htmlFor="speech-script-mode" className="text-sm">
-                    Use Speech Script
+                    {t('podcasts.generatePodcastDialog.useSpeechScript')}
                   </Label>
                 </div>
               </RadioGroup>
@@ -595,10 +598,10 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                      Content Selection
+                      {t('podcasts.generatePodcastDialog.contentSelection')}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Pick notebooks, sources, and notes to include in this episode.
+                      {t('podcasts.generatePodcastDialog.contentSelectionDesc')}
                     </p>
                   </div>
               <div className="flex items-center gap-2">
@@ -607,13 +610,13 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                     (acc, summary) => acc + summary.sources + summary.notes,
                     0
                   )}{' '}
-                  items selected
+                  {t('podcasts.generatePodcastDialog.itemsSelected')}
                 </Badge>
                 {(tokenCount > 0 || charCount > 0) && (
                   <span className="text-xs text-muted-foreground">
-                    {tokenCount > 0 && `${formatNumber(tokenCount)} tokens`}
+                    {tokenCount > 0 && `${formatNumber(tokenCount)} ${t('podcasts.generatePodcastDialog.tokens')}`}
                     {tokenCount > 0 && charCount > 0 && ' / '}
-                    {charCount > 0 && `${formatNumber(charCount)} chars`}
+                    {charCount > 0 && `${formatNumber(charCount)} ${t('podcasts.generatePodcastDialog.chars')}`}
                   </span>
                 )}
               </div>
@@ -622,11 +625,11 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
             <div className="rounded-lg border bg-muted/30">
               {notebooksQuery.isLoading ? (
                 <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading notebooks
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('podcasts.generatePodcastDialog.loadingNotebooks')}
                 </div>
               ) : notebooks.length === 0 ? (
                 <div className="p-6 text-sm text-muted-foreground">
-                  No notebooks found. Create a notebook and add content before generating a podcast.
+                  {t('podcasts.generatePodcastDialog.noNotebooksFound')}
                 </div>
               ) : (
                 <ScrollArea className="h-[60vh]">
@@ -674,12 +677,12 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {summary.sources + summary.notes > 0
-                                      ? `${summary.sources} sources, ${summary.notes} notes`
-                                      : 'No content selected'}
+                                      ? `${summary.sources} ${t('podcasts.generatePodcastDialog.sources')}, ${summary.notes} ${t('podcasts.generatePodcastDialog.notes')}`
+                                      : t('podcasts.generatePodcastDialog.noContentSelected')}
                                   </p>
                                 </div>
                                 <Badge variant="outline" className="text-xs">
-                                  {sources.length} sources · {notes.length} notes
+                                  {sources.length} {t('podcasts.generatePodcastDialog.sources')} · {notes.length} {t('podcasts.generatePodcastDialog.notes')}
                                 </Badge>
                               </div>
                             </AccordionTrigger>
@@ -689,7 +692,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                   <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Sources
+                                    {t('podcasts.generatePodcastDialog.sources')}
                                   </h4>
                                   {sourcesQueries[index]?.isFetching && (
                                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -697,7 +700,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                                 </div>
                                 {sources.length === 0 ? (
                                   <p className="text-xs text-muted-foreground">
-                                    No sources available in this notebook.
+                                    {t('podcasts.generatePodcastDialog.noSourcesAvailable')}
                                   </p>
                                 ) : (
                                   <div className="space-y-2">
@@ -720,12 +723,12 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                                           />
                                           <div className="flex flex-1 flex-col gap-1">
                                             <span className="text-sm font-medium text-foreground">
-                                              {source.title || 'Untitled source'}
+                                              {source.title || t('podcasts.generatePodcastDialog.untitledSource')}
                                             </span>
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                              <span>{source.asset?.url ? 'Link' : 'File'}</span>
+                                              <span>{source.asset?.url ? t('podcasts.generatePodcastDialog.link') : t('podcasts.generatePodcastDialog.file')}</span>
                                               <span>•</span>
-                                              <span>{source.embedded ? 'Embedded' : 'Not embedded'}</span>
+                                              <span>{source.embedded ? t('podcasts.generatePodcastDialog.embedded') : t('podcasts.generatePodcastDialog.notEmbedded')}</span>
                                             </div>
                                           </div>
                                           <Select
@@ -740,7 +743,7 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                                             disabled={mode === 'off'}
                                           >
                                             <SelectTrigger className="w-[140px]">
-                                              <SelectValue placeholder="Select mode" />
+                                              <SelectValue placeholder={t('podcasts.generatePodcastDialog.selectMode')} />
                                             </SelectTrigger>
                                             <SelectContent>
                                               {SOURCE_MODES.map((option) => (
@@ -768,11 +771,11 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
 
                               <div className="space-y-2">
                                 <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Notes
+                                  {t('podcasts.generatePodcastDialog.notesSection')}
                                 </h4>
                                 {notes.length === 0 ? (
                                   <p className="text-xs text-muted-foreground">
-                                    No notes available in this notebook.
+                                    {t('podcasts.generatePodcastDialog.noNotesAvailable')}
                                   </p>
                                 ) : (
                                   <div className="space-y-2">
@@ -795,10 +798,10 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                                           />
                                           <div className="flex flex-1 flex-col">
                                             <span className="text-sm font-medium text-foreground">
-                                              {note.title || 'Untitled note'}
+                                              {note.title || t('podcasts.generatePodcastDialog.untitledNote')}
                                             </span>
                                             <span className="text-xs text-muted-foreground">
-                                              Updated {new Date(note.updated).toLocaleString()}
+                                              {t('podcasts.generatePodcastDialog.updated')} {new Date(note.updated).toLocaleString()}
                                             </span>
                                           </div>
                                         </div>
@@ -823,21 +826,21 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
               <div className="space-y-3">
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                    Speech Script Selection
+                    {t('podcasts.generatePodcastDialog.speechScriptSelection')}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Select a speech script to use as content for the podcast episode.
+                    {t('podcasts.generatePodcastDialog.speechScriptSelectionDesc')}
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-muted/30">
                   {speechScriptsQuery.isLoading ? (
                     <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading speech scripts
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('podcasts.generatePodcastDialog.loadingSpeechScripts')}
                     </div>
                   ) : speechScripts.length === 0 ? (
                     <div className="p-6 text-sm text-muted-foreground">
-                      No speech scripts found. Create a speech script before generating a podcast.
+                      {t('podcasts.generatePodcastDialog.noSpeechScriptsFound')}
                     </div>
                   ) : (
                     <ScrollArea className="h-[60vh]">
@@ -866,11 +869,11 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                   <span>{script.status}</span>
                                   <span>•</span>
-                                  <span>{script.outline_sections_count} sections</span>
+                                  <span>{script.outline_sections_count} {t('podcasts.generatePodcastDialog.sections')}</span>
                                   {script.created && (
                                     <>
                                       <span>•</span>
-                                      <span>Created {new Date(script.created).toLocaleDateString()}</span>
+                                      <span>{t('podcasts.generatePodcastDialog.createdDate')} {new Date(script.created).toLocaleDateString()}</span>
                                     </>
                                   )}
                                 </div>
@@ -889,27 +892,27 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
           <div className="space-y-6">
             <div className="space-y-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Episode Settings
+                {t('podcasts.generatePodcastDialog.episodeSettings')}
               </h3>
               {episodeProfilesQuery.isLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading episode profiles
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t('podcasts.generatePodcastDialog.loadingEpisodeProfiles')}
                 </div>
               ) : episodeProfiles.length === 0 ? (
                 <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-                  No episode profiles found. Create an episode profile before generating a podcast.
+                  {t('podcasts.generatePodcastDialog.noEpisodeProfilesFound')}
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="episode_profile">Episode profile</Label>
+                    <Label htmlFor="episode_profile">{t('podcasts.generatePodcastDialog.episodeProfileLabel')}</Label>
                     <Select
                       value={episodeProfileId}
                       onValueChange={setEpisodeProfileId}
                       disabled={episodeProfiles.length === 0}
                     >
                       <SelectTrigger id="episode_profile">
-                        <SelectValue placeholder="Select an episode profile" />
+                        <SelectValue placeholder={t('podcasts.generatePodcastDialog.selectEpisodeProfile')} />
                       </SelectTrigger>
                       <SelectContent>
                         {episodeProfiles.map((profile) => (
@@ -921,32 +924,32 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
                     </Select>
                     {selectedEpisodeProfile && (
                       <p className="text-xs text-muted-foreground">
-                        Uses speaker profile <strong>{selectedEpisodeProfile.speaker_config}</strong>
+                        {t('podcasts.generatePodcastDialog.usesSpeakerProfile')} <strong>{selectedEpisodeProfile.speaker_config}</strong>
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="episode_name">Episode name</Label>
+                    <Label htmlFor="episode_name">{t('podcasts.generatePodcastDialog.episodeName')}</Label>
                     <Input
                       id="episode_name"
                       value={episodeName}
                       onChange={(event) => setEpisodeName(event.target.value)}
-                      placeholder="e.g., AI and the Future of Work"
+                      placeholder={t('podcasts.generatePodcastDialog.episodeNamePlaceholder')}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="instructions">Additional instructions</Label>
+                    <Label htmlFor="instructions">{t('podcasts.generatePodcastDialog.additionalInstructions')}</Label>
                     <Textarea
                       id="instructions"
                       value={instructions}
                       onChange={(event) => setInstructions(event.target.value)}
-                      placeholder="Any supplemental guidance to append to the episode briefing..."
+                      placeholder={t('podcasts.generatePodcastDialog.additionalInstructionsPlaceholder')}
                       rows={6}
                     />
                     <p className="text-xs text-muted-foreground">
-                      These instructions will be appended to the episode profile&apos;s default briefing.
+                      {t('podcasts.generatePodcastDialog.additionalInstructionsDesc')}
                     </p>
                   </div>
                 </div>
@@ -962,14 +965,14 @@ export function GeneratePodcastDialog({ open, onOpenChange }: GeneratePodcastDia
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating episode...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('podcasts.generatePodcastDialog.generatingEpisode')}
                   </>
                 ) : (
-                  'Generate Podcast'
+                  t('podcasts.generatePodcastDialog.generatePodcast')
                 )}
               </Button>
               <p className="text-xs text-muted-foreground">
-                The episode will appear in the Episodes list once generation starts. Refresh the list to monitor progress.
+                {t('podcasts.generatePodcastDialog.episodeWillAppear')}
               </p>
             </div>
           </div>

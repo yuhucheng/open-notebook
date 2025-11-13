@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertCircle, Loader2, RefreshCcw } from 'lucide-react'
 
 import { useMeetings, useDeleteMeeting } from '@/lib/hooks/use-meetings'
@@ -21,6 +22,7 @@ function SummaryBadge({ label, value }: { label: string; value: number }) {
 }
 
 export function MeetingsTab() {
+  const { t } = useTranslation()
   const [showGenerateDialog, setShowGenerateDialog] = useState(false)
   const {
     meetings,
@@ -46,14 +48,14 @@ export function MeetingsTab() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">会议概览</h2>
+          <h2 className="text-xl font-semibold">{t('meetings.meetingsOverview')}</h2>
           <p className="text-sm text-muted-foreground">
-            监控会议内容生成任务并查看最终成果。
+            {t('meetings.meetingsOverviewDesc')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowGenerateDialog(true)}>
-            创建会议
+            {t('meetings.createMeeting')}
           </Button>
           <Button
             variant="outline"
@@ -66,21 +68,21 @@ export function MeetingsTab() {
             ) : (
               <RefreshCcw className="mr-2 h-4 w-4" />
             )}
-            刷新
+            {t('common.refresh')}
           </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <SummaryBadge label="总计" value={meetings.length} />
+        <SummaryBadge label={t('common.total')} value={meetings.length} />
       </div>
 
       {isError ? (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>加载会议失败</AlertTitle>
+          <AlertTitle>{t('meetings.loadMeetingsFailed')}</AlertTitle>
           <AlertDescription>
-            无法获取最新的会议内容。请稍后再试。
+            {t('meetings.loadMeetingsFailedDesc')}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -88,14 +90,14 @@ export function MeetingsTab() {
       {isLoading ? (
         <div className="flex items-center gap-3 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          加载会议中…
+          {t('meetings.loadingMeetings')}
         </div>
       ) : null}
 
       {emptyState ? (
         <div className="rounded-lg border border-dashed bg-muted/30 p-10 text-center">
           <p className="text-sm text-muted-foreground">
-            还没有会议内容。从笔记本或来源聊天界面生成第一个会议内容。
+            {t('meetings.noMeetings')}
           </p>
         </div>
       ) : null}
@@ -103,9 +105,9 @@ export function MeetingsTab() {
       {meetings.length > 0 && (
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold leading-tight">所有会议</h3>
+            <h3 className="text-lg font-semibold leading-tight">{t('meetings.allMeetings')}</h3>
             <p className="text-sm text-muted-foreground">
-              按开始时间从早到晚排列的会议记录。
+              {t('meetings.allMeetingsDesc')}
             </p>
           </div>
           <Separator />

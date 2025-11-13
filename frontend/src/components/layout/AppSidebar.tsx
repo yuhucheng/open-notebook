@@ -27,6 +27,8 @@ import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { AddSourceDialog } from '@/components/sources/AddSourceDialog'
 import { CreateNotebookDialog } from '@/components/notebooks/CreateNotebookDialog'
 import { GeneratePodcastDialog } from '@/components/podcasts/GeneratePodcastDialog'
+import { GenerateSpeechScriptDialog } from '@/components/speech-scripts/GenerateSpeechScriptDialog'
+import { GenerateMeetingDialog } from '@/components/meetings/GenerateMeetingDialog'
 import { Separator } from '@/components/ui/separator'
 import {
   Book,
@@ -78,7 +80,7 @@ const navigation = [
   },
 ] as const
 
-type CreateTarget = 'source' | 'notebook' | 'podcast'
+type CreateTarget = 'source' | 'notebook' | 'podcast' | 'speech-script' | 'meeting'
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -90,6 +92,8 @@ export function AppSidebar() {
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
   const [notebookDialogOpen, setNotebookDialogOpen] = useState(false)
   const [podcastDialogOpen, setPodcastDialogOpen] = useState(false)
+  const [speechScriptDialogOpen, setSpeechScriptDialogOpen] = useState(false)
+  const [meetingDialogOpen, setMeetingDialogOpen] = useState(false)
 
   const handleCreateSelection = (target: CreateTarget) => {
     setCreateMenuOpen(false)
@@ -100,6 +104,10 @@ export function AppSidebar() {
       setNotebookDialogOpen(true)
     } else if (target === 'podcast') {
       setPodcastDialogOpen(true)
+    } else if (target === 'speech-script') {
+      setSpeechScriptDialogOpen(true)
+    } else if (target === 'meeting') {
+      setMeetingDialogOpen(true)
     }
   }
 
@@ -227,12 +235,32 @@ export function AppSidebar() {
                 <DropdownMenuItem
                   onSelect={(event) => {
                     event.preventDefault()
+                    handleCreateSelection('speech-script')
+                  }}
+                  className="gap-2"
+                >
+                  <Presentation className="h-4 w-4" />
+                  {t('sidebar.Speech')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault()
                     handleCreateSelection('podcast')
                   }}
                   className="gap-2"
                 >
                   <Mic className="h-4 w-4" />
                   {t('sidebar.Podcast')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault()
+                    handleCreateSelection('meeting')
+                  }}
+                  className="gap-2"
+                >
+                  <TvMinimalPlay className="h-4 w-4" />
+                  {t('sidebar.Meeting')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -370,6 +398,14 @@ export function AppSidebar() {
       <GeneratePodcastDialog
         open={podcastDialogOpen}
         onOpenChange={setPodcastDialogOpen}
+      />
+      <GenerateSpeechScriptDialog
+        open={speechScriptDialogOpen}
+        onOpenChange={setSpeechScriptDialogOpen}
+      />
+      <GenerateMeetingDialog
+        open={meetingDialogOpen}
+        onOpenChange={setMeetingDialogOpen}
       />
     </TooltipProvider>
   )
