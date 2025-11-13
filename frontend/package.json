@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "export INTERNAL_API_URL=http://172.20.116.38:5055 && export API_URL=http://172.20.116.38:5055 && next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:-8502}",
     "lint": "next lint"
