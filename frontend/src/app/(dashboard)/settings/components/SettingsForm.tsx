@@ -1,6 +1,7 @@
 'use client'
 
 import { useForm, Controller } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -24,6 +25,7 @@ const settingsSchema = z.object({
 type SettingsFormData = z.infer<typeof settingsSchema>
 
 export function SettingsForm() {
+  const { t } = useTranslation()
   const { data: settings, isLoading, error } = useSettings()
   const updateSettings = useUpdateSettings()
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
@@ -78,9 +80,9 @@ export function SettingsForm() {
   if (error) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load settings</AlertTitle>
+        <AlertTitle>{t('settings.loadFailed')}</AlertTitle>
         <AlertDescription>
-          {error instanceof Error ? error.message : 'An unexpected error occurred.'}
+          {error instanceof Error ? error.message : t('settings.loadFailedDesc')}
         </AlertDescription>
       </Alert>
     )
@@ -90,14 +92,14 @@ export function SettingsForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Content Processing</CardTitle>
+          <CardTitle>{t('settings.contentProcessing')}</CardTitle>
           <CardDescription>
-            Configure how documents and URLs are processed
+            {t('settings.contentProcessingDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="doc_engine">Document Processing Engine</Label>
+            <Label htmlFor="doc_engine">{t('settings.documentProcessingEngine')}</Label>
             <Controller
               name="default_content_processing_engine_doc"
               control={control}
@@ -108,32 +110,32 @@ export function SettingsForm() {
                   onValueChange={field.onChange}
                   disabled={field.disabled || isLoading}
                 >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select document processing engine" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Auto (Recommended)</SelectItem>
-                      <SelectItem value="docling">Docling</SelectItem>
-                      <SelectItem value="simple">Simple</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={t('settings.selectDocEngine')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (Recommended)</SelectItem>
+                    <SelectItem value="docling">Docling</SelectItem>
+                    <SelectItem value="simple">Simple</SelectItem>
+                  </SelectContent>
+                </Select>
               )}
             />
             <Collapsible open={expandedSections.doc} onOpenChange={() => toggleSection('doc')}>
               <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.doc ? 'rotate-180' : ''}`} />
-                Help me choose
+                {t('settings.helpMeChoose')}
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>• <strong>Docling</strong> is a little slower but more accurate, specially if the documents contain tables and images.</p>
-                <p>• <strong>Simple</strong> will extract any content from the document without formatting it. It&apos;s ok for simple documents, but will lose quality in complex ones.</p>
-                <p>• <strong>Auto (recommended)</strong> will try to process through docling and default to simple.</p>
+                <p>• <strong>Docling</strong> {t('settings.doclingDesc')}</p>
+                <p>• <strong>Simple</strong> {t('settings.simpleDesc')}</p>
+                <p>• <strong>Auto (recommended)</strong> {t('settings.autoDocDesc')}</p>
               </CollapsibleContent>
             </Collapsible>
           </div>
           
           <div className="space-y-3">
-            <Label htmlFor="url_engine">URL Processing Engine</Label>
+            <Label htmlFor="url_engine">{t('settings.urlProcessingEngine')}</Label>
             <Controller
               name="default_content_processing_engine_url"
               control={control}
@@ -145,7 +147,7 @@ export function SettingsForm() {
                   disabled={field.disabled || isLoading}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select URL processing engine" />
+                    <SelectValue placeholder={t('settings.selectUrlEngine')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="auto">Auto (Recommended)</SelectItem>
@@ -159,13 +161,13 @@ export function SettingsForm() {
             <Collapsible open={expandedSections.url} onOpenChange={() => toggleSection('url')}>
               <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.url ? 'rotate-180' : ''}`} />
-                Help me choose
+                {t('settings.helpMeChoose')}
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>• <strong>Firecrawl</strong> is a paid service (with a free tier), and very powerful.</p>
-                <p>• <strong>Jina</strong> is a good option as well and also has a free tier.</p>
-                <p>• <strong>Simple</strong> will use basic HTTP extraction and will miss content on javascript-based websites.</p>
-                <p>• <strong>Auto (recommended)</strong> will try to use firecrawl (if API Key is present). Then, it will use Jina until reaches the limit (or will keep using Jina if you setup the API Key). It will fallback to simple, when none of the previous options is possible.</p>
+                <p>• <strong>Firecrawl</strong> {t('settings.firecrawlDesc')}</p>
+                <p>• <strong>Jina</strong> {t('settings.jinaDesc')}</p>
+                <p>• <strong>Simple</strong> {t('settings.simpleUrlDesc')}</p>
+                <p>• <strong>Auto (recommended)</strong> {t('settings.autoUrlDesc')}</p>
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -174,14 +176,14 @@ export function SettingsForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Embedding and Search</CardTitle>
+          <CardTitle>{t('settings.embeddingAndSearch')}</CardTitle>
           <CardDescription>
-            Configure search and embedding options
+            {t('settings.embeddingAndSearchDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="embedding">Default Embedding Option</Label>
+            <Label htmlFor="embedding">{t('settings.defaultEmbeddingOption')}</Label>
             <Controller
               name="default_embedding_option"
               control={control}
@@ -193,7 +195,7 @@ export function SettingsForm() {
                   disabled={field.disabled || isLoading}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select embedding option" />
+                    <SelectValue placeholder={t('settings.selectEmbeddingOption')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ask">Ask</SelectItem>
@@ -206,14 +208,14 @@ export function SettingsForm() {
             <Collapsible open={expandedSections.embedding} onOpenChange={() => toggleSection('embedding')}>
               <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.embedding ? 'rotate-180' : ''}`} />
-                Help me choose
+                {t('settings.helpMeChoose')}
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>Embedding the content will make it easier to find by you and by your AI agents. If you are running a local embedding model (Ollama, for example), you shouldn&apos;t worry about cost and just embed everything. For online providers, you might want to be careful only if you process a lot of content (like 100s of documents at a day).</p>
-                <p>• Choose <strong>always</strong> if you are running a local embedding model or if your content volume is not that big</p>
-                <p>• Choose <strong>ask</strong> if you want to decide every time</p>
-                <p>• Choose <strong>never</strong> if you don&apos;t care about vector search or do not have an embedding provider.</p>
-                <p>As a reference, OpenAI&apos;s text-embedding-3-small costs about 0.02 for 1 million tokens -- which is about 30 times the Wikipedia page for Earth. With Gemini API, Text Embedding 004 is free with a rate limit of 1500 requests per minute.</p>
+                <p>{t('settings.embeddingHelpDesc')}</p>
+                <p>• {t('settings.embeddingAlwaysDesc')}</p>
+                <p>• {t('settings.embeddingAskDesc')}</p>
+                <p>• {t('settings.embeddingNeverDesc')}</p>
+                <p>{t('settings.embeddingCostDesc')}</p>
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -222,14 +224,14 @@ export function SettingsForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>File Management</CardTitle>
+          <CardTitle>{t('settings.fileManagement')}</CardTitle>
           <CardDescription>
-            Configure file handling and storage options
+            {t('settings.fileManagementDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="auto_delete">Auto Delete Files</Label>
+            <Label htmlFor="auto_delete">{t('settings.autoDeleteFiles')}</Label>
             <Controller
               name="auto_delete_files"
               control={control}
@@ -241,11 +243,11 @@ export function SettingsForm() {
                   disabled={field.disabled || isLoading}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select auto delete option" />
+                    <SelectValue placeholder={t('settings.selectAutoDelete')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">{t('common.yes')}</SelectItem>
+                    <SelectItem value="no">{t('common.no')}</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -253,12 +255,12 @@ export function SettingsForm() {
             <Collapsible open={expandedSections.files} onOpenChange={() => toggleSection('files')}>
               <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedSections.files ? 'rotate-180' : ''}`} />
-                Help me choose
+                {t('settings.helpMeChoose')}
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2 text-sm text-muted-foreground space-y-2">
-                <p>Once your files are uploaded and processed, they are not required anymore. Most users should allow Open Notebook to delete uploaded files from the upload folder automatically. Choose <strong>no</strong>, ONLY if you are using Notebook as the primary storage location for those files (which you shouldn&apos;t be at all). This option will soon be deprecated in favor of always downloading the files.</p>
-                <p>• Choose <strong>yes</strong> (recommended) to automatically delete uploaded files after processing</p>
-                <p>• Choose <strong>no</strong> only if you need to keep the original files in the upload folder</p>
+                <p>{t('settings.autoDeleteHelpDesc')}</p>
+                <p>• {t('settings.autoDeleteYesDesc')}</p>
+                <p>• {t('settings.autoDeleteNoDesc')}</p>
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -270,7 +272,7 @@ export function SettingsForm() {
           type="submit" 
           disabled={!isDirty || updateSettings.isPending}
         >
-          {updateSettings.isPending ? 'Saving...' : 'Save Settings'}
+          {updateSettings.isPending ? t('settings.saving') : t('settings.saveSettings')}
         </Button>
       </div>
     </form>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { TransformationCard } from './TransformationCard'
@@ -17,6 +18,7 @@ interface TransformationsListProps {
 }
 
 export function TransformationsList({ transformations, isLoading, onPlayground }: TransformationsListProps) {
+  const { t } = useTranslation()
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingTransformation, setEditingTransformation] = useState<Transformation | undefined>()
 
@@ -37,12 +39,12 @@ export function TransformationsList({ transformations, isLoading, onPlayground }
     return (
       <EmptyState
         icon={Wand2}
-        title="No transformations yet"
-        description="Create your first transformation to process and extract insights from your content."
+        title={t('transformations.noTransformations')}
+        description={t('transformations.noTransformationsDesc')}
         action={
           <Button onClick={() => handleOpenEditor()}>
             <Plus className="h-4 w-4 mr-2" />
-            Create New Transformation
+            {t('transformations.createNewTransformation')}
           </Button>
         }
       />
@@ -53,10 +55,10 @@ export function TransformationsList({ transformations, isLoading, onPlayground }
     <>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Your Transformations</h2>
+          <h2 className="text-lg font-semibold">{t('transformations.yourTransformations')}</h2>
           <Button onClick={() => handleOpenEditor()}>
             <Plus className="h-4 w-4 mr-2" />
-            Create New Transformation
+            {t('transformations.createNewTransformation')}
           </Button>
         </div>
 

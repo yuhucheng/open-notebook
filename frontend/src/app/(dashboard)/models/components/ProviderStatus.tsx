@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ interface ProviderStatusProps {
 }
 
 export function ProviderStatus({ providers }: ProviderStatusProps) {
+  const { t } = useTranslation()
   // Combine all providers, with available ones first
   const allProviders = useMemo(
     () => [
@@ -33,11 +35,11 @@ export function ProviderStatus({ providers }: ProviderStatusProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI Providers</CardTitle>
+        <CardTitle>{t('models.aiProviders')}</CardTitle>
         <CardDescription>
-          Configure providers through environment variables to enable their models. 
+          {t('models.aiProvidersDesc')}
           <span className="ml-1">
-            {providers.available.length} of {allProviders.length} configured
+            {t('models.configured', { available: providers.available.length, total: allProviders.length })}
           </span>
         </CardDescription>
       </CardHeader>
@@ -83,12 +85,12 @@ export function ProviderStatus({ providers }: ProviderStatusProps) {
                           </Badge>
                         ))
                       ) : (
-                        <Badge variant="outline" className="text-xs">No models</Badge>
+                        <Badge variant="outline" className="text-xs">{t('models.noModels')}</Badge>
                       )}
                     </div>
                   ) : (
                     <Badge variant="outline" className="text-xs text-muted-foreground border-dashed">
-                      Not configured
+                      {t('models.notConfigured')}
                     </Badge>
                   )}
                 </div>
@@ -104,7 +106,7 @@ export function ProviderStatus({ providers }: ProviderStatusProps) {
               onClick={() => setExpanded((prev) => !prev)}
               className="text-sm font-medium text-primary hover:underline"
             >
-              {expanded ? 'See less' : `See all ${allProviders.length} providers`}
+              {expanded ? t('models.seeLess') : t('models.seeAllProviders', { count: allProviders.length })}
             </button>
           </div>
         ) : null}
@@ -116,7 +118,7 @@ export function ProviderStatus({ providers }: ProviderStatusProps) {
             rel="noopener noreferrer"
             className="text-sm text-primary hover:underline"
           >
-            Learn how to configure providers →
+            {t('models.learnConfigureProviders')}
           </a>
         </div>
       </CardContent>

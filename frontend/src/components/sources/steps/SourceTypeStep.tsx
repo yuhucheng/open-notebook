@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Controller } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 
 interface CreateSourceFormData {
   type: 'link' | 'upload' | 'text'
@@ -21,27 +22,6 @@ interface CreateSourceFormData {
   async_processing: boolean
 }
 
-const SOURCE_TYPES = [
-  {
-    value: 'link' as const,
-    label: 'Link',
-    icon: LinkIcon,
-    description: 'Add a web page or URL',
-  },
-  {
-    value: 'upload' as const,
-    label: 'Upload',
-    icon: FileIcon,
-    description: 'Upload a document or file',
-  },
-  {
-    value: 'text' as const,
-    label: 'Text',
-    icon: FileTextIcon,
-    description: 'Add text content directly',
-  },
-]
-
 interface SourceTypeStepProps {
   control: Control<CreateSourceFormData>
   register: UseFormRegister<CreateSourceFormData>
@@ -49,13 +29,36 @@ interface SourceTypeStepProps {
 }
 
 export function SourceTypeStep({ control, register, errors }: SourceTypeStepProps) {
+  const { t } = useTranslation()
   // Watch the selected type to make title conditional
   const selectedType = useWatch({ control, name: 'type' })
+  
+  const SOURCE_TYPES = [
+    {
+      value: 'link' as const,
+      label: t('sources.addSourceDialog.sourceType.link'),
+      icon: LinkIcon,
+      description: t('sources.addSourceDialog.sourceType.linkDesc'),
+    },
+    {
+      value: 'upload' as const,
+      label: t('sources.addSourceDialog.sourceType.upload'),
+      icon: FileIcon,
+      description: t('sources.addSourceDialog.sourceType.uploadDesc'),
+    },
+    {
+      value: 'text' as const,
+      label: t('sources.addSourceDialog.sourceType.text'),
+      icon: FileTextIcon,
+      description: t('sources.addSourceDialog.sourceType.textDesc'),
+    },
+  ]
+  
   return (
     <div className="space-y-6">
       <FormSection
-        title="Source Type"
-        description="Choose how you want to add your content"
+        title={t('sources.addSourceDialog.sourceType.title')}
+        description={t('sources.addSourceDialog.sourceType.description')}
       >
         <Controller
           control={control}
@@ -85,11 +88,11 @@ export function SourceTypeStep({ control, register, errors }: SourceTypeStepProp
                   {/* Type-specific fields */}
                   {type.value === 'link' && (
                     <div>
-                      <Label htmlFor="url" className="mb-2 block">URL *</Label>
+                      <Label htmlFor="url" className="mb-2 block">{t('sources.addSourceDialog.sourceType.urlLabel')}</Label>
                       <Input
                         id="url"
                         {...register('url')}
-                        placeholder="https://example.com/article"
+                        placeholder={t('sources.addSourceDialog.sourceType.urlPlaceholder')}
                         type="url"
                       />
                       {errors.url && (
@@ -100,7 +103,7 @@ export function SourceTypeStep({ control, register, errors }: SourceTypeStepProp
                   
                   {type.value === 'upload' && (
                     <div>
-                      <Label htmlFor="file" className="mb-2 block">File *</Label>
+                      <Label htmlFor="file" className="mb-2 block">{t('sources.addSourceDialog.sourceType.fileLabel')}</Label>
                       <Input
                         id="file"
                         type="file"
@@ -108,7 +111,7 @@ export function SourceTypeStep({ control, register, errors }: SourceTypeStepProp
                         accept=".pdf,.doc,.docx,.pptx,.ppt,.xlsx,.xls,.txt,.md,.epub,.mp4,.avi,.mov,.wmv,.mp3,.wav,.m4a,.aac,.jpg,.jpeg,.png,.tiff,.zip,.tar,.gz,.html"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Supported: Documents (PDF, DOC, DOCX, PPT, XLS, EPUB, TXT, MD), Media (MP4, MP3, WAV, M4A), Images (JPG, PNG), Archives (ZIP)
+                        {t('sources.addSourceDialog.sourceType.fileSupported')}
                       </p>
                       {errors.file && (
                         <p className="text-sm text-destructive mt-1">{errors.file.message}</p>
@@ -118,11 +121,11 @@ export function SourceTypeStep({ control, register, errors }: SourceTypeStepProp
                   
                   {type.value === 'text' && (
                     <div>
-                      <Label htmlFor="content" className="mb-2 block">Text Content *</Label>
+                      <Label htmlFor="content" className="mb-2 block">{t('sources.addSourceDialog.sourceType.contentLabel')}</Label>
                       <Textarea
                         id="content"
                         {...register('content')}
-                        placeholder="Paste or type your content here..."
+                        placeholder={t('sources.addSourceDialog.sourceType.contentPlaceholder')}
                         rows={6}
                       />
                       {errors.content && (
@@ -141,16 +144,16 @@ export function SourceTypeStep({ control, register, errors }: SourceTypeStepProp
       </FormSection>
 
       <FormSection
-        title={selectedType === 'text' ? "Title *" : "Title (optional)"}
+        title={selectedType === 'text' ? t('sources.addSourceDialog.sourceType.titleRequired') : t('sources.addSourceDialog.sourceType.titleOptional')}
         description={selectedType === 'text'
-          ? "A title is required for text content"
-          : "If left empty, a title will be generated from the content"
+          ? t('sources.addSourceDialog.sourceType.titleRequiredDesc')
+          : t('sources.addSourceDialog.sourceType.titleOptionalDesc')
         }
       >
         <Input
           id="title"
           {...register('title')}
-          placeholder="Give your source a descriptive title"
+          placeholder={t('sources.addSourceDialog.sourceType.titlePlaceholder')}
         />
         {errors.title && (
           <p className="text-sm text-destructive mt-1">{errors.title.message}</p>

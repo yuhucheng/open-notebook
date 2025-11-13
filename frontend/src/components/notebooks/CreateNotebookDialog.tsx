@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
 
 import {
   Dialog,
@@ -19,20 +20,22 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useCreateNotebook } from '@/lib/hooks/use-notebooks'
 
-const createNotebookSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-})
-
-type CreateNotebookFormData = z.infer<typeof createNotebookSchema>
-
 interface CreateNotebookDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function CreateNotebookDialog({ open, onOpenChange }: CreateNotebookDialogProps) {
+  const { t } = useTranslation()
   const createNotebook = useCreateNotebook()
+  
+  const createNotebookSchema = z.object({
+    name: z.string().min(1, t('notebooks.createNotebookDialog.nameRequired')),
+    description: z.string().optional(),
+  })
+  
+  type CreateNotebookFormData = z.infer<typeof createNotebookSchema>
+  
   const {
     register,
     handleSubmit,
@@ -65,19 +68,19 @@ export function CreateNotebookDialog({ open, onOpenChange }: CreateNotebookDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Create New Notebook</DialogTitle>
+          <DialogTitle>{t('notebooks.createNotebookDialog.title')}</DialogTitle>
           <DialogDescription>
-            Start organizing your research with a dedicated space for related sources and notes.
+            {t('notebooks.createNotebookDialog.description')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="notebook-name">Name *</Label>
+            <Label htmlFor="notebook-name">{t('notebooks.createNotebookDialog.nameLabel')}</Label>
             <Input
               id="notebook-name"
               {...register('name')}
-              placeholder="Enter notebook name"
+              placeholder={t('notebooks.createNotebookDialog.namePlaceholder')}
               autoFocus
             />
             {errors.name && (
@@ -86,21 +89,21 @@ export function CreateNotebookDialog({ open, onOpenChange }: CreateNotebookDialo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notebook-description">Description</Label>
+            <Label htmlFor="notebook-description">{t('notebooks.createNotebookDialog.descriptionLabel')}</Label>
             <Textarea
               id="notebook-description"
               {...register('description')}
-              placeholder="Describe the purpose and scope of this notebook..."
+              placeholder={t('notebooks.createNotebookDialog.descriptionPlaceholder')}
               rows={4}
             />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 pt-4">
             <Button type="button" variant="outline" onClick={closeDialog}>
-              Cancel
+              {t('notebooks.createNotebookDialog.cancel')}
             </Button>
             <Button type="submit" disabled={!isValid || createNotebook.isPending}>
-              {createNotebook.isPending ? 'Creating…' : 'Create Notebook'}
+              {createNotebook.isPending ? t('notebooks.createNotebookDialog.creating') : t('notebooks.createNotebookDialog.create')}
             </Button>
           </DialogFooter>
         </form>
