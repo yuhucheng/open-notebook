@@ -27,6 +27,20 @@ class NotebookResponse(BaseModel):
     source_count: int
     note_count: int
 
+class MeetingCreate(BaseModel):
+    theme: str
+    start_time: int
+    end_time: int
+    postcat_ids: List[str]
+
+class MeetingResponse(BaseModel):
+    id: str
+    theme: str
+    start_time: int
+    end_time: int
+    postcat_ids: List[str]
+    meeting_code: str
+
 
 # Search models
 class SearchRequest(BaseModel):

@@ -12,10 +12,10 @@ from open_notebook.domain.podcast import EpisodeProfile, PodcastEpisode, Speaker
 
 try:
     from podcast_creator import configure, create_podcast
-    from podcast_creator.graph_speech import create_podcast_from_speech_script
+    from open_notebook.graphs.graph_speech import create_podcast_from_speech_script
 except ImportError as e:
-    logger.error(f"Failed to import podcast_creator: {e}")
-    raise ValueError("podcast_creator library not available")
+    logger.error(f"Failed to import podcast_creator or graph_speech: {e}")
+    raise ValueError("podcast_creator library or graph_speech module not available")
 
 
 def full_model_dump(model):

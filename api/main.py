@@ -25,6 +25,7 @@ from api.routers import (
     speaker_profiles,
     speech_scripts,
     transformations,
+    meetings,
 )
 from api.routers import commands as commands_router
 from open_notebook.database.async_migrate import AsyncMigrationManager
@@ -117,6 +118,7 @@ app.include_router(podcasts.router, prefix="/api", tags=["podcasts"])
 app.include_router(episode_profiles.router, prefix="/api", tags=["episode-profiles"])
 app.include_router(speaker_profiles.router, prefix="/api", tags=["speaker-profiles"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
+app.include_router(meetings.router, prefix="/api", tags=["meetings"])
 app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(speech_scripts.router, prefix="/api", tags=["speech-scripts"])
 

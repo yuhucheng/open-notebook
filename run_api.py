@@ -15,7 +15,7 @@ sys.path.insert(0, str(current_dir))
 
 if __name__ == "__main__":
     # Default configuration
-    host = os.getenv("API_HOST", "127.0.0.1")
+    host = os.getenv("API_HOST", "0.0.0.0")
     port = int(os.getenv("API_PORT", "5055"))
     reload = os.getenv("API_RELOAD", "true").lower() == "true"
 
