@@ -244,6 +244,7 @@ async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], 
                 "script": page_data.get("script", f"第{page_num}页的演讲稿内容"),
             })
         logger.info(f"Outlines data: {outlines_data}")
+        transformations_service.delete_transformation(transformation.id)
         return outlines_data
 
     except Exception as e:
@@ -264,6 +265,7 @@ async def get_auxiliary_content(auxiliary_sources: List[str], auxiliary_notebook
     获取辅助内容
     """
     auxiliary_content = []
+    max_length = 100000  # 10万字符限制
 
     # 获取辅助source内容
     for source_id in auxiliary_sources:
@@ -277,7 +279,13 @@ async def get_auxiliary_content(auxiliary_sources: List[str], auxiliary_notebook
                 title = source_data.get("title", "")
                 content = source_data.get("full_text", "")
                 if content:
-                    auxiliary_content.append(f"Source: {title}\nContent: {content[:1000]}...")
+                    content_item = f"Source: {title}\nContent: {content[:10000]}..."
+                    # 检查添加后是否超过长度限制
+                    if len(" ".join(auxiliary_content + [content_item])) <= max_length:
+                        auxiliary_content.append(content_item)
+                    else:
+                        logger.info(f"Content length would exceed {max_length} characters, skipping remaining auxiliary sources")
+                        break
         except Exception as e:
             logger.warning(f"Failed to get auxiliary source content: {e}")
 
