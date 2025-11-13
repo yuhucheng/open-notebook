@@ -1,12 +1,46 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 
-import { meetingsApi } from '@/lib/api/meetings'
+import { meetingsApi, resolveMeetingAssetUrl } from '@/lib/api/meetings'
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
-import { Meeting, CreateMeetingRequest } from '@/lib/types/meetings'
+import { Meeting, CreateMeetingRequest, MeetingPodcastEpisode } from '@/lib/types/meetings'
+
+/**
+ * 处理单个 episode 的 URL
+ */
+async function processEpisodeUrls(episode: MeetingPodcastEpisode): Promise<MeetingPodcastEpisode> {
+  const [resolvedImageUrl, resolvedAudioUrl] = await Promise.all([
+    resolveMeetingAssetUrl(episode.ppt_image_url),
+    resolveMeetingAssetUrl(episode.clip_url),
+  ])
+
+  return {
+    ...episode,
+    ppt_image_url: resolvedImageUrl || episode.ppt_image_url,
+    clip_url: resolvedAudioUrl || episode.clip_url,
+  }
+}
+
+/**
+ * 处理单个 meeting 的 URL
+ */
+async function processMeetingUrls(meeting: Meeting): Promise<Meeting> {
+  if (!meeting.podcast_episode || meeting.podcast_episode.length === 0) {
+    return meeting
+  }
+
+  const processedEpisodes = await Promise.all(
+    meeting.podcast_episode.map(processEpisodeUrls)
+  )
+
+  return {
+    ...meeting,
+    podcast_episode: processedEpisodes,
+  }
+}
 
 export function useMeetings() {
   const query = useQuery({
@@ -15,11 +49,43 @@ export function useMeetings() {
   })
 
   const meetings = useMemo(() => query.data ?? [], [query.data])
+  const [processedMeetings, setProcessedMeetings] = useState<Meeting[]>([])
+
+  // 处理 URL 拼接
+  useEffect(() => {
+    if (meetings.length === 0) {
+      setProcessedMeetings([])
+      return
+    }
+
+    let cancelled = false
+
+    const processUrls = async () => {
+      try {
+        const processed = await Promise.all(meetings.map(processMeetingUrls))
+        if (!cancelled) {
+          setProcessedMeetings(processed)
+        }
+      } catch (error) {
+        console.error('处理会议 URL 失败:', error)
+        // 如果处理失败，使用原始数据
+        if (!cancelled) {
+          setProcessedMeetings(meetings)
+        }
+      }
+    }
+
+    void processUrls()
+
+    return () => {
+      cancelled = true
+    }
+  }, [meetings])
 
   // 按时间排序，最早的在前
   const sortedMeetings = useMemo(() => {
-    return [...meetings].sort((a, b) => a.start_time - b.start_time)
-  }, [meetings])
+    return [...processedMeetings].sort((a, b) => a.start_time - b.start_time)
+  }, [processedMeetings])
 
   return {
     ...query,

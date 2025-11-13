@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { InfoIcon, Trash2, Calendar, Clock, Hash } from 'lucide-react'
+import { InfoIcon, Trash2, Calendar, Clock, Hash, Video } from 'lucide-react'
 
 import { Meeting } from '@/lib/types/meetings'
 import { formatMeetingTime, formatMeetingDuration } from '@/lib/hooks/use-meetings'
@@ -29,6 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { MeetingPreviewDialog } from './MeetingPreviewDialog'
 
 interface MeetingCardProps {
   meeting: Meeting
@@ -38,6 +39,7 @@ interface MeetingCardProps {
 
 export function MeetingCard({ meeting, onDelete, deleting }: MeetingCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const startDate = new Date(meeting.start_time)
   const endDate = new Date(meeting.end_time)
@@ -134,6 +136,20 @@ export function MeetingCard({ meeting, onDelete, deleting }: MeetingCardProps) {
                 </div>
               </DialogContent>
             </Dialog>
+            <MeetingPreviewDialog
+              open={previewOpen}
+              onOpenChange={setPreviewOpen}
+              episodes={meeting.podcast_episode || []}
+              meetingTheme={meeting.theme}
+              meetingCode={meeting.meeting_code}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <Video className="mr-2 h-4 w-4" /> 预览
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-destructive">
