@@ -40,6 +40,7 @@ class MeetingResponse(BaseModel):
     end_time: int
     postcat_ids: List[str]
     meeting_code: str
+    podcast_episode: List[Dict[str, Any]]
 
 
 # Search models
