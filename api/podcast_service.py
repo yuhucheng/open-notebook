@@ -7,7 +7,7 @@ from surreal_commands import get_command_status, submit_command
 
 from open_notebook.domain.notebook import Notebook
 from open_notebook.domain.podcast import EpisodeProfile, PodcastEpisode, SpeakerProfile
-from open_notebook.domain.speech_script import SpeechScript
+from open_notebook.domain.speech_script import OutlineSection, SpeechScript
 
 
 class PodcastGenerationRequest(BaseModel):
@@ -30,6 +30,18 @@ class PodcastGenerationResponse(BaseModel):
     message: str
     episode_profile: str
     episode_name: str
+
+
+class PodcastSlideClipResponse(BaseModel):
+    """Response model for podcast slide and clip information"""
+
+    page_number: int
+    title: str
+    outline: str
+    script: str
+    ppt_image_url: Optional[str] = None
+    clip_filename: str
+    clip_url: Optional[str] = None
 
 
 class PodcastService:
@@ -187,6 +199,86 @@ class PodcastService:
         except Exception as e:
             logger.error(f"Failed to get podcast episode {episode_id}: {e}")
             raise HTTPException(status_code=404, detail=f"Episode not found: {str(e)}")
+
+    @staticmethod
+    async def get_episode_slides_and_clips(episode_id: str) -> list[PodcastSlideClipResponse]:
+        """Get podcast episode's slides (PPT images) and corresponding audio clips"""
+        try:
+            # Get the podcast episode
+            episode = await PodcastEpisode.get(episode_id)
+            if not episode:
+                raise HTTPException(status_code=404, detail=f"Episode {episode_id} not found")
+
+            # Check if this episode was generated from a speech script
+            # The speech_script_id is stored in the content field for speech script based episodes
+            speech_script_id = episode.content
+            if not speech_script_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Episode {episode_id} was not generated from a speech script"
+                )
+
+            # Get the speech script
+            speech_script = await SpeechScript.get(speech_script_id)
+            if not speech_script:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Speech script {speech_script_id} not found"
+                )
+
+            # Get all outline sections for this speech script
+            outline_sections = await OutlineSection.get_by_speech_script(speech_script_id)
+            if not outline_sections:
+                return []
+
+            # Build response with slides and clips info
+            result = []
+            for section in outline_sections:
+                # Calculate clip filename: page_number - 1, zero-padded to 4 digits
+                clip_index = section.page_number - 1
+                clip_filename = f"{clip_index:04d}.mp3"
+
+                # Construct clip path (clips are stored in clips subdirectory at episode level)
+                clip_path = None
+                clip_url = None
+                if episode.audio_file:
+                    from pathlib import Path
+                    audio_path = Path(episode.audio_file)
+                    # clips directory is at the episode level, not audio level
+                    episode_dir = audio_path.parent.parent if audio_path.parent.name == "audio" else audio_path.parent
+                    clip_path_obj = episode_dir / "clips" / f"{clip_filename}"
+                    if clip_path_obj.exists():
+                        clip_path = str(clip_path_obj)
+                        clip_url = f"/api/podcasts/episodes/{episode_id}/audio/{clip_filename}"
+
+                # Construct PPT image URL
+                ppt_image_url = None
+                if section.image_path:
+                    ppt_image_url = f"/api/speech-scripts/{speech_script_id}/images/{section.id}"
+
+                result.append(PodcastSlideClipResponse(
+                    page_number=section.page_number,
+                    title=section.title,
+                    outline=section.outline,
+                    script=section.script,
+                    ppt_image_url=ppt_image_url,
+                    clip_filename=clip_filename,
+                    clip_url=clip_url
+                ))
+
+            # Sort by page number
+            result.sort(key=lambda x: x.page_number)
+
+            return result
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get episode slides and clips for {episode_id}: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get episode slides and clips: {str(e)}"
+            )
 
 
 class DefaultProfiles:

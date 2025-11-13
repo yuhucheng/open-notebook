@@ -11,6 +11,7 @@ from api.podcast_service import (
     PodcastGenerationRequest,
     PodcastGenerationResponse,
     PodcastService,
+    PodcastSlideClipResponse,
 )
 
 router = APIRouter()
@@ -210,7 +211,7 @@ async def delete_podcast_episode(episode_id: str):
     try:
         # Get the episode first to check if it exists and get the audio file path
         episode = await PodcastService.get_episode(episode_id)
-        
+
         # Delete the physical audio file if it exists
         if episode.audio_file:
             audio_path = _resolve_audio_path(episode.audio_file)
@@ -220,13 +221,60 @@ async def delete_podcast_episode(episode_id: str):
                     logger.info(f"Deleted audio file: {audio_path}")
                 except Exception as e:
                     logger.warning(f"Failed to delete audio file {audio_path}: {e}")
-        
+
         # Delete the episode from the database
         await episode.delete()
-        
+
         logger.info(f"Deleted podcast episode: {episode_id}")
         return {"message": "Episode deleted successfully", "episode_id": episode_id}
-        
+
     except Exception as e:
         logger.error(f"Error deleting podcast episode: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete episode: {str(e)}")
+
+
+@router.get("/podcasts/episodes/{episode_id}/slides-clips", response_model=List[PodcastSlideClipResponse])
+async def get_podcast_episode_slides_and_clips(episode_id: str):
+    """Get podcast episode's slides (PPT images) and corresponding audio clips"""
+    try:
+        slides_clips = await PodcastService.get_episode_slides_and_clips(episode_id)
+        return slides_clips
+    except Exception as e:
+        logger.error(f"Error fetching podcast episode slides and clips: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get episode slides and clips: {str(e)}"
+        )
+
+
+@router.get("/podcasts/episodes/{episode_id}/audio/{clip_filename}")
+async def stream_podcast_episode_clip_audio(episode_id: str, clip_filename: str):
+    """Stream a specific audio clip file associated with a podcast episode"""
+    try:
+        # Verify the episode exists
+        episode = await PodcastService.get_episode(episode_id)
+
+        # Construct the clip path
+        if not episode.audio_file:
+            raise HTTPException(status_code=404, detail="Episode has no audio file")
+
+        from pathlib import Path
+        audio_path = _resolve_audio_path(episode.audio_file)
+        # clips directory is at the episode level, not audio level
+        episode_dir = audio_path.parent.parent if audio_path.parent.name == "audio" else audio_path.parent
+        clip_path = episode_dir / "clips" / f"{clip_filename}"
+
+        if not clip_path.exists():
+            raise HTTPException(status_code=404, detail="Audio clip file not found on disk")
+
+        return FileResponse(
+            clip_path,
+            media_type="audio/mpeg",
+            filename=clip_path.name,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error streaming podcast episode clip audio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to stream clip audio: {str(e)}")
