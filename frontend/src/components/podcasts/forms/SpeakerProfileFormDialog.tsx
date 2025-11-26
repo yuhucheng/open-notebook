@@ -280,7 +280,7 @@ export function SpeakerProfileFormDialog({
                   type="range"
                   min="0.5"
                   max="2.0"
-                  step="0.1"
+                  step="0.01"
                   {...register('speech_speed', { valueAsNumber: true })}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                 />

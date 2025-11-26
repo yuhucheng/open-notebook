@@ -21,6 +21,7 @@ class SpeechScriptGenerationRequest(BaseModel):
     source_id: str
     auxiliary_sources: List[str] = []
     auxiliary_notebooks: List[str] = []
+    model_id: Optional[str] = None
 
 
 class SpeechScriptResponse(BaseModel):
@@ -81,6 +82,7 @@ class SpeechScriptService:
                 "source_id": request.source_id,
                 "auxiliary_sources": request.auxiliary_sources,
                 "auxiliary_notebooks": request.auxiliary_notebooks,
+                "model_id": request.model_id,
             }
 
             # 确保命令模块已导入
@@ -275,6 +277,49 @@ class SpeechScriptService:
             raise HTTPException(
                 status_code=500, detail=f"Failed to get speech script: {str(e)}"
             )
+
+    @staticmethod
+    async def duplicate_speech_script(speech_script_id: str, new_name: Optional[str] = None) -> str:
+        """复制演讲稿及其所有大纲讲稿"""
+        try:
+            # 获取原始演讲稿数据
+            original_data = await SpeechScriptService.get_speech_script(speech_script_id)
+            if not original_data:
+                raise HTTPException(status_code=404, detail="演讲稿不存在")
+
+            # 创建新的演讲稿
+            new_script = SpeechScript(
+                name=new_name or f"{original_data['name']} (副本)",
+                description=original_data.get("description"),
+                source_id=original_data["source_id"],
+                auxiliary_sources=original_data["auxiliary_sources"],
+                auxiliary_notebooks=original_data["auxiliary_notebooks"],
+                status="completed"  # 复制的演讲稿直接设为完成状态
+            )
+            await new_script.save()
+
+            # 复制所有大纲讲稿
+            outline_sections = original_data["outline_sections"]
+            for section_data in outline_sections:
+                new_section = OutlineSection(
+                    speech_script_id=str(new_script.id),
+                    page_number=section_data["page_number"],
+                    title=section_data["title"],
+                    outline=section_data["outline"],
+                    script=section_data["script"],
+                    image_path=section_data.get("image_path"),  # 复用原图片路径
+                    order_index=section_data["order_index"]
+                )
+                await new_section.save()
+
+            logger.info(f"Duplicated speech script {speech_script_id} to {new_script.id}")
+            return str(new_script.id)
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to duplicate speech script: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"复制演讲稿失败: {str(e)}")
 
     @staticmethod
     async def delete_speech_script(speech_script_id: str) -> bool:

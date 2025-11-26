@@ -6,6 +6,7 @@ import { useQueries, useQueryClient } from '@tanstack/react-query'
 
 import { useNotebooks } from '@/lib/hooks/use-notebooks'
 import { useGenerateSpeechScript } from '@/lib/hooks/use-speech-scripts'
+import { useModels } from '@/lib/hooks/use-models'
 import { chatApi } from '@/lib/api/chat'
 import { sourcesApi } from '@/lib/api/sources'
 import { notesApi } from '@/lib/api/notes'
@@ -25,9 +26,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
 interface NotebookSelection {
@@ -69,12 +70,14 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
   const [speechScriptName, setSpeechScriptName] = useState('')
   const [description, setDescription] = useState('')
   const [selectedSourceId, setSelectedSourceId] = useState<string>('')
+  const [selectedModelId, setSelectedModelId] = useState<string>('')
 
   const [isBuildingContext, setIsBuildingContext] = useState(false)
   const [tokenCount, setTokenCount] = useState<number>(0)
   const [charCount, setCharCount] = useState<number>(0)
 
   const notebooksQuery = useNotebooks()
+  const modelsQuery = useModels()
   const generateSpeechScript = useGenerateSpeechScript()
 
   // Also fetch all sources directly (for legacy data structure support)
@@ -90,6 +93,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
   )
 
   // Fetch sources and notes for notebooks using useQueries
+  // PPT文件查询独立于辅助内容查询
   const sourcesQueries = useQueries({
     queries: notebooks.map((notebook) => ({
       queryKey: QUERY_KEYS.sources(notebook.id),
@@ -110,6 +114,13 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
     })),
   })
 
+  // 独立的PPT文件查询，不受辅助内容查询状态影响
+  const allSourcesForPPTQuery = useQuery({
+    queryKey: ['all-sources-for-ppt'],
+    queryFn: () => sourcesApi.list(),
+    enabled: open,
+  })
+
   const sourcesByNotebook = useMemo<Record<string, SourceListResponse[]>>(() => {
     const map: Record<string, SourceListResponse[]> = {}
     notebooks.forEach((notebook, index) => {
@@ -126,13 +137,13 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
     return map
   }, [notebooks, notesQueries])
 
-  // Find PPT sources - try both new multi-notebook structure and legacy direct source query
+  // Find PPT sources - use independent PPT query, not affected by auxiliary content queries
   const pptSources = useMemo(() => {
     const allSources: SourceListResponse[] = []
 
-    // First try the new multi-notebook structure
-    Object.values(sourcesByNotebook).forEach((sources) => {
-      sources.forEach((source) => {
+    // Use the independent PPT query data
+    if (allSourcesForPPTQuery.data) {
+      allSourcesForPPTQuery.data.forEach((source) => {
         const filePath = source.asset?.file_path || ''
         const url = source.asset?.url || ''
         const title = source.title || ''
@@ -146,41 +157,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
 
         const isPpt = hasPptExtension(filePath) || hasPptExtension(url) || hasPptExtension(title)
 
-        console.log('PPT检测 (notebook关联):', {
-          sourceId: source.id,
-          title: source.title,
-          filePath,
-          url,
-          isPpt,
-          asset: source.asset,
-        })
-
-        if (isPpt) {
-          allSources.push(source)
-        }
-      })
-    })
-
-    // If no PPT files found through notebook association, try direct source query
-    // This handles the legacy data structure where sources aren't linked to notebooks
-    if (allSources.length === 0 && allSourcesQuery.data) {
-      console.log('未通过notebook关联找到PPT文件，尝试直接查询所有sources...')
-
-      allSourcesQuery.data.forEach((source) => {
-        const filePath = source.asset?.file_path || ''
-        const url = source.asset?.url || ''
-        const title = source.title || ''
-
-        const hasPptExtension = (text: string) => {
-          const lowerText = text.toLowerCase()
-          return lowerText.includes('.ppt') ||
-                 lowerText.includes('.pptx') ||
-                 lowerText.includes('.pdf')
-        }
-
-        const isPpt = hasPptExtension(filePath) || hasPptExtension(url) || hasPptExtension(title)
-
-        console.log('PPT检测 (直接查询):', {
+        console.log('PPT检测 (独立查询):', {
           sourceId: source.id,
           title: source.title,
           filePath,
@@ -196,11 +173,10 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
     }
 
     console.log('找到的PPT文件总数:', allSources.length)
-    console.log('通过notebook关联的sources总数:', Object.values(sourcesByNotebook).reduce((sum, sources) => sum + sources.length, 0))
-    console.log('直接查询的sources总数:', allSourcesQuery.data?.length || 0)
+    console.log('独立查询的sources总数:', allSourcesForPPTQuery.data?.length || 0)
 
     return allSources
-  }, [sourcesByNotebook, allSourcesQuery.data])
+  }, [allSourcesForPPTQuery.data])
 
   // Initialise selection defaults when content loads
   useEffect(() => {
@@ -256,6 +232,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
     setSpeechScriptName('')
     setDescription('')
     setSelectedSourceId('')
+    setSelectedModelId('')
     setTokenCount(0)
     setCharCount(0)
   }, [])
@@ -524,6 +501,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
         source_id: selectedSourceId,
         auxiliary_sources: auxiliarySources,
         auxiliary_notebooks: auxiliaryNotebooks,
+        model_id: selectedModelId || undefined,
       })
 
       // Delay closing dialog slightly to ensure refetch completes
@@ -548,6 +526,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
     onOpenChange,
     resetState,
     selectedSourceId,
+    selectedModelId,
     selections,
     speechScriptName,
     toast,
@@ -562,7 +541,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
         resetState()
       }
     }}>
-      <DialogContent className="w-[80vw] max-w-[1080px] max-h-[90vh] overflow-hidden">
+      <DialogContent className="w-[80vw] max-w-[1080px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>生成演讲稿</DialogTitle>
           <DialogDescription>
@@ -623,15 +602,11 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
                     <p>没有找到PPT文件。请先上传PPT格式的文件到sources中。</p>
                     <p>支持的文件格式：.ppt, .pptx, .pdf</p>
                     <p>
-                      通过notebook关联的sources总数：
-                      {Object.values(sourcesByNotebook).reduce((sum, sources) => sum + sources.length, 0)}
+                      sources总数：
+                      {allSourcesForPPTQuery.data?.length || 0}
+                      {allSourcesForPPTQuery.isLoading ? ' (加载中...)' : ''}
                     </p>
-                    <p>
-                      直接查询的sources总数：
-                      {allSourcesQuery.data?.length || 0}
-                      {allSourcesQuery.isLoading ? ' (加载中...)' : ''}
-                    </p>
-                    {allSourcesQuery.data && allSourcesQuery.data.length > 0 && (
+                    {allSourcesForPPTQuery.data && allSourcesForPPTQuery.data.length > 0 && (
                       <p className="text-orange-600">
                         如果有PPT文件但仍未显示，请检查浏览器控制台的&ldquo;PPT检测&rdquo;日志获取详细信息。
                       </p>
@@ -712,7 +687,7 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
                     没有找到notebooks。先创建一个notebook并添加内容。
                   </div>
                 ) : (
-                  <ScrollArea className="h-[40vh]">
+                  <ScrollArea className="h-[60vh]">
                     <Accordion
                       type="multiple"
                       value={expandedNotebooks}
@@ -874,6 +849,47 @@ export function GenerateSpeechScriptDialog({ open, onOpenChange }: GenerateSpeec
           </div>
 
           <div className="space-y-6">
+            {/* Language Model选择 */}
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  生成模型
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  选择用于生成演讲稿的AI语言模型（可选，不选择将使用默认模型）。
+                </p>
+              </div>
+
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <Label htmlFor="model_select" className="text-sm font-medium">
+                  选择Language Model
+                </Label>
+                <select
+                  id="model_select"
+                  value={selectedModelId}
+                  onChange={(e) => setSelectedModelId(e.target.value)}
+                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">使用默认模型...</option>
+                  {modelsQuery.data?.filter((model) => model.type === 'language').map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name} ({model.provider})
+                    </option>
+                  ))}
+                </select>
+                {modelsQuery.isLoading && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    正在加载可用模型...
+                  </div>
+                )}
+                {modelsQuery.error && (
+                  <div className="mt-2 text-xs text-orange-600">
+                    加载模型列表失败，将使用默认模型。
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex flex-col gap-3">
               <Button
                 onClick={handleSubmit}

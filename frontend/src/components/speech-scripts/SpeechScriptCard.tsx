@@ -8,8 +8,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
+  Copy,
   FileText,
-  MoreHorizontal,
   Play,
   Trash2,
 } from 'lucide-react'
@@ -24,19 +24,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Progress } from '@/components/ui/progress'
 import { SpeechScriptResponse } from '@/lib/types/speech-scripts'
+import { toast } from 'sonner'
 
 interface SpeechScriptCardProps {
   speechScript: SpeechScriptResponse
   onDelete: (speechScriptId: string) => void
+  onDuplicate: (speechScriptId: string) => void
   deleting: boolean
+  duplicating: boolean
 }
 
 const statusConfig = {
@@ -66,11 +63,23 @@ const statusConfig = {
   },
 } as const
 
-export function SpeechScriptCard({ speechScript, onDelete, deleting }: SpeechScriptCardProps) {
+export function SpeechScriptCard({ speechScript, onDelete, onDuplicate, deleting, duplicating }: SpeechScriptCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const status = statusConfig[speechScript.status as keyof typeof statusConfig] || statusConfig.draft
   const StatusIcon = status.icon
+
+  const handleDuplicate = async () => {
+    if (duplicating) return
+
+    try {
+      await onDuplicate(speechScript.id)
+      toast.success('演讲稿复制成功')
+    } catch (error) {
+      console.error('Failed to duplicate speech script:', error)
+      toast.error('复制失败，请重试')
+    }
+  }
 
   const handleDelete = () => {
     onDelete(speechScript.id)
@@ -96,22 +105,35 @@ export function SpeechScriptCard({ speechScript, onDelete, deleting }: SpeechScr
             </div>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDuplicate}
+              disabled={duplicating || speechScript.status === 'processing'}
+            >
+              {duplicating ? (
+                <>
+                  <Clock className="mr-2 h-4 w-4 animate-spin" />
+                  复制中...
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-2 h-4 w-4" />
+                  复制
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              删除
+            </Button>
+          </div>
         </div>
       </CardHeader>
 

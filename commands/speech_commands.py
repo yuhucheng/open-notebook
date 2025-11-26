@@ -35,6 +35,7 @@ class SpeechScriptGenerationInput(CommandInput):
     source_id: str
     auxiliary_sources: List[str]
     auxiliary_notebooks: List[str]
+    model_id: Optional[str] = None
 
 
 class SpeechScriptGenerationOutput(CommandOutput):
@@ -99,7 +100,7 @@ async def extract_ppt_pages(source_id: str, output_dir: Path) -> List[Path]:
         raise
 
 
-async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], auxiliary_content: str = "", description: str = "") -> List[Dict[str, Any]]:
+async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], auxiliary_content: str = "", description: str = "", model_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     为所有页面一次性生成大纲和讲稿，确保演讲的连续性
     使用AI模型生成实际内容
@@ -130,12 +131,23 @@ async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], 
         if not file_path.exists():
             raise ValueError(f"File not found: {file_path}")
 
-        # 获取默认的transformation模型
-        models = models_service.get_all_models(model_type="language")
-        if not models:
-            raise ValueError("No language models available")
-
-        model_id = models[0].id  # 使用第一个可用的语言模型
+        # 获取模型
+        if model_id:
+            # 使用指定的language model
+            try:
+                specified_model = models_service.get_model(model_id)
+                model_id = specified_model.id
+                logger.info(f"Using specified language model: {specified_model.name} ({specified_model.provider})")
+            except Exception as e:
+                logger.error(f"Failed to get specified model {model_id}: {e}")
+                raise ValueError(f"指定的language模型不存在或无法访问: {model_id}")
+        else:
+            # 获取默认的language model
+            models = models_service.get_all_models(model_type="language")
+            if not models:
+                raise ValueError("No language models available")
+            model_id = models[0].id  # 使用第一个可用的语言模型
+            logger.info("Using default language model")
 
         # 提取每页的文本内容
         doc = fitz.open(str(file_path))
@@ -150,31 +162,37 @@ async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], 
             })
         doc.close()
 
-        # 构建提示词
-        prompt = (
-            "你是一个专业的演讲稿撰写助手。请基于提供的PPT页面内容，为整个演讲生成连贯的大纲和讲稿。"
-            "要求：1. 分析所有页面的内容，理解演讲的整体结构和逻辑流程 "
-            "2. 为每一页生成：- 标题：简洁明了，反映页面核心内容 - 大纲：详细描述页面内容要点 "
-            "- 讲稿：自然的演讲语言，确保前后页面的连贯性 "
-            "3. 演讲稿要符合演讲的逻辑顺序，前后呼应 "
-            "4. 语言要生动、自然，适合口头表达 "
-            f"5. 必须为所有输入的页面生成对应的内容，输出页数必须与输入页数完全一致，不能少于或多于输入的页面数量 "
-            f"6. 如果提供了辅助内容，请适当融入讲稿中 {f'辅助内容：{auxiliary_content}' if auxiliary_content else ''} "
-            f"7. 如果提供了演讲稿描述，请按照描述风格来生成演讲稿 {f'演讲稿描述：{description}' if description else ''} "
-            "请以JSON格式返回结果，必须返回完整的JSON结构，不能被截断，而且你需要检查最终返回的数据是否满足JSON格式，"
-            "不能生成非JSON字符串的内容（如```json```），格式如下："
-            "{'pages': [{'page_number': 1, 'title': '页面标题', 'outline': '页面大纲内容', 'script': '演讲稿内容'}, ...]}"
-        )
-
         # 构建文本输入，包含每页的文本内容
-        text_input = f"演讲稿生成任务：{prompt} 共有 {len(page_texts)} 页PPT内容需要分析："
+        text_input = f"演讲稿生成任务：共有 {len(page_texts)} 页PPT内容需要分析："
 
         # 将页面文本信息格式化为JSON字符串
         import json
         page_texts_json = json.dumps(page_texts, ensure_ascii=False)
         text_input += f"\n页面内容（JSON格式）：{page_texts_json}"
 
-        # 创建临时的transformation来处理这个任务
+        # 如果提供了辅助内容或描述，添加到输入中
+        if auxiliary_content or description:
+            text_input += "\n\n附加信息："
+            if auxiliary_content:
+                text_input += f"\n每个页面内容的讲稿内容，可以从以下辅助内容中获取相关信息：{auxiliary_content}"
+            if description:
+                text_input += f"\n演讲稿描述：{description}"
+
+        # 创建临时的transformation来处理这个任务，使用指定的language model
+        logger.info(f"Creating temporary transformation for speech script generation using model: {model_id}")
+        prompt = (
+            f"你是一个专业的演讲稿撰写助手。请基于提供的PPT页面内容，为整个演讲生成连贯的大纲和讲稿。"
+            f"共有 {len(page_texts)} 页PPT内容，请为每一页生成对应的演讲内容。"
+            "要求：1. 分析所有页面的内容，理解演讲的整体结构和逻辑流程 "
+            "2. 为每一页生成：- 标题：简洁明了，反映页面核心内容 - 大纲：详细描述页面内容要点 "
+            "- 讲稿：自然的演讲语言，确保前后页面的连贯性 "
+            "3. 演讲稿要符合演讲的逻辑顺序，前后呼应 "
+            "4. 语言要生动、自然，适合口头表达 "
+            f"5. 必须为所有 {len(page_texts)} 页输入内容生成对应的演讲稿，输出页数必须与输入页数完全一致，不能少于或多于 {len(page_texts)} 页 "
+            "请以JSON格式返回结果，必须返回完整的JSON结构，不能被截断，而且你需要检查最终返回的数据是否满足JSON格式，"
+            "不能生成非JSON字符串的内容（如```json```），格式如下："
+            "{'pages': [{'page_number': 1, 'title': '页面标题', 'outline': '页面大纲内容', 'script': '演讲稿内容'}, ...]}"
+        )
         transformation = transformations_service.create_transformation(
             name="speech_script_generation",
             title="演讲稿生成",
@@ -189,7 +207,7 @@ async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], 
 
         for attempt in range(max_retries):
             try:
-                logger.info(f"Attempt {attempt + 1}/{max_retries} to generate speech script content")
+                logger.info(f"Attempt {attempt + 1}/{max_retries} to generate speech script content using transformation: {transformation.title}")
 
                 # 执行transformation
                 result = transformations_service.execute_transformation(
@@ -245,7 +263,11 @@ async def generate_outlines_from_pages(source_id: str, image_paths: List[Path], 
                 "script": page_data.get("script", f"第{page_num}页的演讲稿内容"),
             })
         logger.info(f"Outlines data: {outlines_data}")
-        transformations_service.delete_transformation(transformation.id)
+
+        # 只在创建了临时transformation时才删除它
+        if not transformation.id:
+            transformations_service.delete_transformation(transformation.id)
+
         return outlines_data
 
     except Exception as e:
@@ -271,14 +293,13 @@ async def get_auxiliary_content(auxiliary_sources: List[str], auxiliary_notebook
     # 获取辅助source内容
     for source_id in auxiliary_sources:
         try:
-            source_result = await Source.get(source_id)
+            source_data = await Source.get(source_id)
             
-            if source_result:
-                source_data = source_result[0]
-                title = source_data.get("title", "")
+            if source_data:
+                title = source_data.title
 
                 # 优先使用insights内容，如果没有insights则使用full_text
-                insights =  await source_result.get_insights()
+                insights =  await source_data.get_insights()
                 if insights:
                     # 如果有insights，提取所有insights的内容
                     insights_content = []
@@ -288,9 +309,9 @@ async def get_auxiliary_content(auxiliary_sources: List[str], auxiliary_notebook
                     if insights_content:
                         content = " ".join(insights_content)
                     else:
-                        content = source_data.get("full_text", "")
+                        content = source_data.full_text
                 else:
-                    content = source_data.get("full_text", "")
+                    content = source_data.full_text
 
                 if content:
                     content_item = f"Source: {title}\nContent: {content[:10000]}..."
@@ -353,7 +374,13 @@ async def generate_speech_script_command(
 
         # 5. 为所有页面一次性生成大纲和讲稿，确保演讲连续性
         logger.info(f"Generating content for all {len(image_paths)} pages at once")
-        outlines_data = await generate_outlines_from_pages(input_data.source_id, image_paths, auxiliary_content, speech_script.description)
+        outlines_data = await generate_outlines_from_pages(
+            input_data.source_id,
+            image_paths,
+            auxiliary_content,
+            speech_script.description,
+            input_data.model_id
+        )
 
         # 6. 创建大纲讲稿记录
         outline_sections = []

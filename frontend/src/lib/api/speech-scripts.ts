@@ -7,6 +7,7 @@ export interface GenerateSpeechScriptRequest {
   source_id: string
   auxiliary_sources: string[]
   auxiliary_notebooks: string[]
+  model_id?: string
 }
 
 export interface SpeechScriptDetailResponse {
@@ -93,6 +94,14 @@ export const speechScriptsApi = {
     updateData: { title?: string; outline?: string; script?: string }
   ): Promise<{ message: string; id: string; title: string; outline: string; script: string; updated?: string }> => {
     const response = await apiClient.put(`/speech-scripts/${speechScriptId}/sections/${sectionId}`, updateData)
+    return response.data
+  },
+
+  duplicate: async (
+    speechScriptId: string,
+    newName?: string
+  ): Promise<{ message: string; original_speech_script_id: string; new_speech_script_id: string }> => {
+    const response = await apiClient.post(`/speech-scripts/${speechScriptId}/duplicate`, newName ? { name: newName } : {})
     return response.data
   },
 }

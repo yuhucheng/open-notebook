@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from loguru import logger
 from pydantic import BaseModel
+from typing import List, Optional
 
 from api.speech_script_service import (
     SpeechScriptGenerationRequest,
@@ -26,6 +27,11 @@ class SpeechScriptDetailResponse(BaseModel):
     """演讲稿详情响应"""
     speech_script: SpeechScriptResponse
     outline_sections: List[OutlineSectionResponse]
+
+
+class DuplicateSpeechScriptRequest(BaseModel):
+    """复制演讲稿请求"""
+    name: Optional[str] = None
 
 
 def _resolve_image_path(image_path: str) -> Path:
@@ -236,6 +242,27 @@ async def update_outline_section(
     except Exception as e:
         logger.error(f"Error updating outline section: {str(e)}")
         raise HTTPException(status_code=500, detail=f"更新大纲讲稿失败: {str(e)}")
+
+
+@router.post("/speech-scripts/{speech_script_id}/duplicate")
+async def duplicate_speech_script(speech_script_id: str, request: DuplicateSpeechScriptRequest = None):
+    """复制演讲稿及其所有大纲讲稿"""
+    try:
+        new_name = request.name if request else None
+
+        new_speech_script_id = await SpeechScriptService.duplicate_speech_script(
+            speech_script_id, new_name
+        )
+
+        return {
+            "message": "演讲稿复制成功",
+            "original_speech_script_id": speech_script_id,
+            "new_speech_script_id": new_speech_script_id
+        }
+
+    except Exception as e:
+        logger.error(f"Error duplicating speech script: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"复制演讲稿失败: {str(e)}")
 
 
 @router.delete("/speech-scripts/{speech_script_id}")

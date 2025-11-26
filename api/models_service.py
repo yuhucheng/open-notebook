@@ -32,7 +32,23 @@ class ModelsService:
             model.updated = model_data["updated"]
             models.append(model)
         return models
-    
+
+    def get_model(self, model_id: str) -> Model:
+        """Get a specific model by ID."""
+        models_data = api_client.get_models()
+        for model_data in models_data:
+            if model_data["id"] == model_id:
+                model = Model(
+                    name=model_data["name"],
+                    provider=model_data["provider"],
+                    type=model_data["type"],
+                )
+                model.id = model_data["id"]
+                model.created = model_data["created"]
+                model.updated = model_data["updated"]
+                return model
+        raise ValueError(f"Model with ID {model_id} not found")
+
     def create_model(self, name: str, provider: str, model_type: str) -> Model:
         """Create a new model."""
         response = api_client.create_model(name, provider, model_type)

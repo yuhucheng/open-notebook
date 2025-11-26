@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react'
 import { AlertCircle, Loader2, RefreshCcw } from 'lucide-react'
 
-import { useDeleteSpeechScript, useSpeechScripts } from '@/lib/hooks/use-speech-scripts'
+import { useDeleteSpeechScript, useDuplicateSpeechScript, useSpeechScripts } from '@/lib/hooks/use-speech-scripts'
 import { SpeechScriptCard } from '@/components/speech-scripts/SpeechScriptCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -78,6 +78,7 @@ export function SpeechScriptsTab() {
     isFetching,
   } = useSpeechScripts()
   const deleteSpeechScript = useDeleteSpeechScript()
+  const duplicateSpeechScript = useDuplicateSpeechScript()
 
   const handleRefresh = useCallback(() => {
     void refetch()
@@ -86,6 +87,11 @@ export function SpeechScriptsTab() {
   const handleDelete = useCallback(
     (speechScriptId: string) => deleteSpeechScript.mutateAsync(speechScriptId),
     [deleteSpeechScript]
+  )
+
+  const handleDuplicate = useCallback(
+    (speechScriptId: string) => duplicateSpeechScript.mutateAsync({ speechScriptId }),
+    [duplicateSpeechScript]
   )
 
   const handleFilterChange = useCallback((filter: FilterType) => {
@@ -221,7 +227,9 @@ export function SpeechScriptsTab() {
                     key={speechScript.id}
                     speechScript={speechScript}
                     onDelete={handleDelete}
+                    onDuplicate={handleDuplicate}
                     deleting={deleteSpeechScript.isPending}
+                    duplicating={duplicateSpeechScript.isPending}
                   />
                 ))}
               </div>
@@ -252,7 +260,9 @@ export function SpeechScriptsTab() {
                 key={speechScript.id}
                 speechScript={speechScript}
                 onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
                 deleting={deleteSpeechScript.isPending}
+                duplicating={duplicateSpeechScript.isPending}
               />
             ))}
           </div>

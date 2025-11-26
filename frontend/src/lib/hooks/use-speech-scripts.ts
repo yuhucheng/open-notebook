@@ -129,3 +129,21 @@ export function useUpdateOutlineSection() {
     },
   })
 }
+
+export function useDuplicateSpeechScript() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      speechScriptId,
+      newName,
+    }: {
+      speechScriptId: string
+      newName?: string
+    }) =>
+      speechScriptsApi.duplicate(speechScriptId, newName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.speechScripts })
+    },
+  })
+}
